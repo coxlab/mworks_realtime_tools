@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<monkeyml version="1.0">
+    <io_devices tag="IO Devices"></io_devices>
+    <variables tag="Variables">
+        <variable tag="x" scope="global" logging="when_changed" default_value="0" type="integer"></variable>
+    </variables>
+    <sounds tag="Sounds"></sounds>
+    <stimuli tag="Stimuli">
+        <stimulus tag="background" full_name="background" type="blank_screen" color="0, 0, 0"></stimulus>
+    </stimuli>
+    <filters tag="Filters"></filters>
+    <optimizers tag="Optimizers"></optimizers>
+    <experiment tag="New Experiment" full_name="" description="">
+        <protocol tag="New Protocol" nsamples="100" sampling_method="cycles" selection="sequential">
+            <trial tag="New Trial" nsamples="1" sampling_method="cycles" selection="sequential">
+                <action tag="Queue Stimulus" type="queue_stimulus" stimulus="background"></action>
+                <action tag="Update Stimulus" type="update_stimulus_display"></action>
+                <action type="assignment" tag="Assign Variable" variable="x" value="x + 1"></action>
+                <action type="wait" tag="Wait" duration=".5" duration_units="s"></action>
+                <action tag="Dequeue Stimulus" type="dequeue_stimulus" stimulus="background"></action>
+                <action tag="Update Stimulus 2" type="update_stimulus_display"></action>
+                <action type="wait" tag="Wait 2" duration=".5" duration_units="s"></action>
+            </trial>
+        </protocol>
+    </experiment>
+</monkeyml>
