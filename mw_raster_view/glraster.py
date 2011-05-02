@@ -44,8 +44,8 @@ class GLRaster:
             # i += 1
             s = self.rowNames[i]#'%s' % i
             for (j, c) in enumerate(s):
-                glRasterPos2f(self.left - 0.075 + 0.01 * j, self.top - self.rowHeight * (i+1))
-                glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_10, ord(c));
+                glRasterPos2f(self.left - 0.08 + 0.012 * j, self.top - self.rowHeight * (i+1))
+                glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, ord(c));
     
     def draw_x_axis(self):
         glColor(1.,1.,1.,1.)

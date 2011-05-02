@@ -20,12 +20,12 @@ if __name__ == '__main__':
     # setup opengl
     glutInit(sys.argv)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA)
-    glutInitWindowSize(1024,300)
+    glutInitWindowSize(1024,600)
     glutCreateWindow("Spike Raster")
     glClearColor(0., 0., 0., 1.)
     
-    #mwEventNames = ['#stimDisplayUpdate','#annouceTrial','success','failure','ignore','correctIgnore']
-    mwEventNames = ['#stimDisplayUpdate','#annouceTrial']
+    mwEventNames = ['#stimDisplayUpdate','#annouceTrial','success','failure','ignore','correctIgnore']
+    #mwEventNames = ['#stimDisplayUpdate','#annouceTrial']
     global mwEventColors
     mwEventColors = [(0.,1.,0.,1.),(0.,1.,0.,1.),(0.,0.,1.,1.),(1.,0.,0.,1.),(.7,.7,.7,1.),(0.,0.,1.,1.)]
     
