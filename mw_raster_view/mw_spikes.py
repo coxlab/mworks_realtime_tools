@@ -32,6 +32,7 @@ if __name__ == '__main__':
     # channel mapping (tdt to position on probe)
     global channelMapping
     channelMapping = [3, 9, 7, 13, 5, 17, 1, 21, 14, 2, 8, 6, 18, 4, 12, 10, 23, 15, 31, 27, 19, 11, 29, 25, 30, 26, 20, 16, 32, 28, 24, 22]    
+    channelNames = [7,10,1,14,5,12,3,11,2,16,22,15,4,9,18,28,6,13,21,27,8,32,17,31,24,26,20,30,23,25,19,29]
     
     # setup raster view
     global NChannels
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     global startTime
     startTime = time.time()
     global raster
-    raster = GLRaster(NRows,startTime,['%i' % i for i in channelMapping] + [s[:2] for s in mwEventNames])
+    raster = GLRaster(NRows,startTime,['%i' % i for i in channelNames] + [s[:2] for s in mwEventNames])
     # global rasterCond
     # rasterCond = Condition()
     global mwTimeOffset
