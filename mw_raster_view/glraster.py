@@ -7,24 +7,63 @@ from OpenGL.GLU import *
 from OpenGL.GL import *
 
 class GLRaster:
-    def __init__(self, NRows, startingX):
+    def __init__(self, NRows, startingX, rowNames=None):
         self.NRows = NRows
+        if rowNames is None:
+            self.rowNames = ['%i' % (i+1) for i in xrange(self.NRows)]
+        else:
+            self.rowNames = rowNames
         self.newEvents = []
-        self.rowHeight = 2. / NRows # gl units
         self.xScale = 0.1 # gl units per update tick
         self.startingX = startingX
         self.cursorX = startingX
         self.cursorXShift_gl = 0.2
-        self.left = -1.
-        self.top = 1.
-        self.width_gl = 2.
-        self.height_gl = self.rowHeight * self.NRows
+        # self.left = -1.
+        # self.top = 1.
+        # self.width_gl = 2.
+        # self.height_gl = 2.
+        # self.rowHeight = self.height_gl / NRows # gl units
+        self.clearDisplay = True
+        self.resize()
+    
+    def resize(self, left=-0.9, top=0.9, width=1.8, height=1.8):
+        self.left = left
+        self.top = top
+        self.width_gl = width
+        self.height_gl = height
+        self.rowHeight = self.height_gl / self.NRows
+        self.clearDisplay = True
+    
+    def draw_y_axis(self):
+        glColor(1.,1.,1.,1.)
+        glBegin(GL_LINES)
+        glVertex(self.left - 0.05, self.top)
+        glVertex(self.left - 0.05, self.top - self.height_gl)
+        glEnd()
+        for i in xrange(self.NRows):
+            # i += 1
+            s = self.rowNames[i]#'%s' % i
+            for (j, c) in enumerate(s):
+                glRasterPos2f(self.left - 0.075 + 0.01 * j, self.top - self.rowHeight * (i+1))
+                glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_10, ord(c));
+    
+    def draw_x_axis(self):
+        glColor(1.,1.,1.,1.)
+        glBegin(GL_LINES)
+        glVertex(self.left, self.top - self.height_gl - 0.05)
+        glVertex(self.left + self.width_gl, self.top - self.height_gl - 0.05)
+        glEnd()
+    
+    def clear(self):
+        glClear(GL_COLOR_BUFFER_BIT)
+        # redraw axes etc...
+        self.draw_y_axis()
+        self.draw_x_axis()
         self.clearDisplay = False
     
     def draw(self,newX=None):
         if self.clearDisplay == True:
-            glClear(GL_COLOR_BUFFER_BIT)
-            self.clearDisplay = False
+            self.clear()
         if newX == None:
             if len(self.newEvents) == 0:
                 return # nothing to draw
@@ -55,6 +94,8 @@ class GLRaster:
         for e in self.newEvents:
             t, r, c = e
             x_gl = (t - self.startingX) * self.xScale + self.left
+            if x_gl < self.left:
+                continue
             top_gl = self.top - r * self.rowHeight
             glColor(*c)
             glBegin(GL_LINES)

@@ -20,13 +20,18 @@ if __name__ == '__main__':
     # setup opengl
     glutInit(sys.argv)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA)
-    glutInitWindowSize(1024,128)
+    glutInitWindowSize(1024,300)
     glutCreateWindow("Spike Raster")
     glClearColor(0., 0., 0., 1.)
     
-    mwEventNames = ['#stimDisplayUpdate','#annouceTrial','success','failure','ignore','correctIgnore']
+    #mwEventNames = ['#stimDisplayUpdate','#annouceTrial','success','failure','ignore','correctIgnore']
+    mwEventNames = ['#stimDisplayUpdate','#annouceTrial']
     global mwEventColors
     mwEventColors = [(0.,1.,0.,1.),(0.,1.,0.,1.),(0.,0.,1.,1.),(1.,0.,0.,1.),(.7,.7,.7,1.),(0.,0.,1.,1.)]
+    
+    # channel mapping (tdt to position on probe)
+    global channelMapping
+    channelMapping = [3, 9, 7, 13, 5, 17, 1, 21, 14, 2, 8, 6, 18, 4, 12, 10, 23, 15, 31, 27, 19, 11, 29, 25, 30, 26, 20, 16, 32, 28, 24, 22]    
     
     # setup raster view
     global NChannels
@@ -35,7 +40,7 @@ if __name__ == '__main__':
     global startTime
     startTime = time.time()
     global raster
-    raster = GLRaster(NRows,startTime)
+    raster = GLRaster(NRows,startTime,['%i' % i for i in channelMapping] + [s[:2] for s in mwEventNames])
     # global rasterCond
     # rasterCond = Condition()
     global mwTimeOffset
@@ -71,11 +76,11 @@ if __name__ == '__main__':
     global audioTimeOffset
     audioTimeOffset = None
     def process_spike(wb): # overload process_spike
-        global audioTimeOffset, raster
+        global audioTimeOffset, channelMapping, raster
         if audioTimeOffset == None:
             audioTimeOffset = time.time() - wb.time_stamp/44100.
         # print "SE:", wb.channel_id, wb.time_stamp/44100. + audioTimeOffset
-        raster.add_event(wb.time_stamp/44100. + audioTimeOffset, wb.channel_id)
+        raster.add_event(wb.time_stamp/44100. + audioTimeOffset, channelMapping[wb.channel_id]-1)
     sl.process_spike = process_spike
     
     def draw():

@@ -13,7 +13,7 @@ if __name__ == '__main__':
     # setup opengl
     glutInit(sys.argv)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA)
-    glutInitWindowSize(1024,128)
+    glutInitWindowSize(1024,256)
     glutCreateWindow("Spike Raster")
     glClearColor(0., 0., 0., 1.)
     
@@ -21,6 +21,7 @@ if __name__ == '__main__':
     global raster
     NRows = 32
     raster = GLRaster(NRows,time.time())
+    # raster.resize(-0.5,0.5,1.,1.)
     
     # setup spike listener
     global sl
