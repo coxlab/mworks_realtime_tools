@@ -16,6 +16,8 @@ from glraster import GLRaster
 sys.path.append("/Library/Application Support/MWorks/Scripting/Python")
 from mworks.conduit import IPCClientConduit
 
+conduitName = 'server_event_conduit'
+
 if __name__ == '__main__':
     # setup opengl
     glutInit(sys.argv)
@@ -62,7 +64,7 @@ if __name__ == '__main__':
         #     raster.reset(raster.newEvents[0][0])
         # rasterCond.notifyAll()
         # rasterCond.release()
-    mwconduit = IPCClientConduit('python_bridge_plugin_conduit')
+    mwconduit = IPCClientConduit(conduitName)
     mwconduit.initialize()
     
     for (i,eventName) in enumerate(mwEventNames):
@@ -70,6 +72,9 @@ if __name__ == '__main__':
         mwconduit.register_callback_for_name(eventName, receive_event)
         # register local code?
         mwconduit.register_local_event_code(i+NChannels,eventName)
+    
+    # print len(mwconduit.codec), mwconduit.codec
+    # print len(mwconduit.reverse_codec), mwconduit.reverse_codec
     
     # setup spike listener
     global sl

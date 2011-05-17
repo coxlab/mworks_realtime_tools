@@ -16,8 +16,13 @@ from glraster import GLRaster
 
 # import mworks conduit
 sys.path.append("/Library/Application Support/MWorks/Scripting/Python")
-from mworks.conduit import IPCClientConduit
+from mworks.conduit import IPCClientConduit as Conduit
+# from mworks.conduit import IPCServerConduit as Conduit
 
+# conduitName = 'python_bridge_plugin_conduit'
+conduitName = 'server_event_conduit'
+
+# eventNames = ['#stimDisplayUpdate','#annouceTrial','x','non_existant_variable']
 eventNames = ['#stimDisplayUpdate','#annouceTrial','x']
 
 if __name__ == '__main__':
@@ -40,21 +45,26 @@ if __name__ == '__main__':
     # setup mworks conduit
     def receive_event(event):
         global raster, rasterCond, startTime
-        #print event.time, event.data, event.code
+        print event.time, event.data, event.code
         rasterCond.acquire()
         raster.add_event(event.time/1000000., event.code)
         if raster.cursorX == startTime:
             raster.reset(raster.newEvents[0][0])
         rasterCond.notifyAll()
         rasterCond.release()
-    mwconduit = IPCClientConduit('python_bridge_plugin_conduit')
+    mwconduit = Conduit(conduitName)
     mwconduit.initialize()
+    print len(mwconduit.codec), mwconduit.codec
+    print len(mwconduit.reverse_codec), mwconduit.reverse_codec
     
     for (i,eventName) in enumerate(eventNames):
         print "registering %s" % eventName
-        mwconduit.register_callback_for_name(eventName, receive_event)
         # register local code?
         mwconduit.register_local_event_code(i,eventName)
+        mwconduit.register_callback_for_name(eventName, receive_event)
+    
+    print len(mwconduit.codec), mwconduit.codec
+    print len(mwconduit.reverse_codec), mwconduit.reverse_codec
     
     def draw():
         global raster, rasterCond
