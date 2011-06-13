@@ -32,6 +32,24 @@ class SocketSpiker (Spiker):
         self.id = id
         self.socket = zmqContext.socket(zmq.PUB)
         self.socket.bind(ipcPath)
+        
+        # make default waveform
+        st = 44 # spike time
+        b = 0.9 # build-up
+        d = 0.1 # decay
+        I = 0.
+        a = 0.
+        self.default_waveform = []
+        for i in xrange(88):
+            if i == st:
+                I = 1.0
+            elif i > st:
+                I -= d
+            a += I * b
+            self.default_waveform.append(max(a,0.))
+    
+    def make_spike_waveform(self):
+        return [random.random() + self.default_waveform[i] for i in xrange(len(self.default_waveform))]
     
     def update(self, dt):
         nSpikes = Spiker.update(self, dt)
@@ -41,8 +59,10 @@ class SocketSpiker (Spiker):
                 wb = SpikeWaveBuffer()
                 wb.channel_id = self.id
                 wb.time_stamp = int(t)
-                for i in xrange(100):
-                    wb.wave_sample.append(random.random())
+                
+                for v in self.default_waveform:
+                    wb.wave_sample.append(v)
+                
                 self.socket.send(wb.SerializeToString())
         return nSpikes
 
