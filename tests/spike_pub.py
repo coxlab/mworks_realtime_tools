@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-import os, random, time
+import os, random, sys, time
 from numpy.random import poisson
 
 import zmq
 
-from spike_wave_pb2 import SpikeWaveBuffer
+sys.path.append('../')
+from physio_online.spike_wave_pb2 import SpikeWaveBuffer
 
 class Spiker:
     def __init__(self, hz):

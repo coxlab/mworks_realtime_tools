@@ -12,7 +12,7 @@ from OpenGL.GLU import *
 from OpenGL.GL import *
 
 #from spike_listener import SpikeListener
-from glraster import GLRaster
+from physio_online.glraster import GLRaster
 
 # import mworks conduit
 sys.path.append("/Library/Application Support/MWorks/Scripting/Python")

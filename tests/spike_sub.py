@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
+import sys
+
 #from pylab import *
 
-from spike_listener import SpikeListener
+sys.path.append('../')
+from physio_online.spike_listener import SpikeListener
 
 if __name__ == '__main__':
     sl = SpikeListener("ipc:///tmp/spike_channels/", xrange(32))
