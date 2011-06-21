@@ -67,16 +67,14 @@ class SocketSpiker (Spiker):
                 self.socket.send(wb.SerializeToString())
         return nSpikes
 
-ipcPath = "ipc:///tmp/spike_channels/"
+# ipcPath = "ipc:///tmp/spike_channels/"
+pathFunc = lambda i : "tcp://127.0.0.1:%i" % (i+8000)
 NChannels = 32
 Hz = 0.1
 
-if not os.path.exists('/tmp/spike_channels/'):
-    os.makedirs('/tmp/spike_channels/')
-
 spikers = []
 for i in xrange(NChannels):
-    spikers.append(SocketSpiker(Hz,'%s/%i' % (ipcPath,i),i))
+    spikers.append(SocketSpiker(Hz,pathFunc(i),i))
 
 prevTime = time.time()
 while True:
