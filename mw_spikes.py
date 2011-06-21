@@ -78,7 +78,8 @@ if __name__ == '__main__':
     
     # setup spike listener
     global sl
-    sl = SpikeListener("ipc:///tmp/spike_channels/", xrange(32))
+    pathFunc = lambda i : "tcp://127.0.0.1:%i" % (i+8000) 
+    sl = SpikeListener(pathFunc, xrange(32))
     global audioTimeOffset
     audioTimeOffset = None
     def process_spike(wb): # overload process_spike

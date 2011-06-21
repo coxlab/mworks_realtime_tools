@@ -7,6 +7,7 @@ from google.protobuf import descriptor_pb2
 # @@protoc_insertion_point(imports)
 
 
+
 DESCRIPTOR = descriptor.FileDescriptor(
   name='spike_wave.proto',
   package='',
@@ -56,7 +57,7 @@ _SPIKEWAVEBUFFER = descriptor.Descriptor(
   serialized_end=102,
 )
 
-
+DESCRIPTOR.message_types_by_name['SpikeWaveBuffer'] = _SPIKEWAVEBUFFER
 
 class SpikeWaveBuffer(message.Message):
   __metaclass__ = reflection.GeneratedProtocolMessageType
