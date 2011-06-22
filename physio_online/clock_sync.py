@@ -9,10 +9,10 @@ from mworks.conduit import IPCClientConduit as Conduit
 from spike_listener import SpikeListener
 
 def delta_code(code1, code0):
-    deltas = []
+    deltas = [0,0,0,0]
     for i in xrange(4):
         mask = (1 << i)
-        deltas[i] = (code1 & mask) - (code0 & mask)
+        deltas[i] = ((code1 & mask) - (code0 & mask) >> i)
     return deltas
 
 class MWPixelClock(object):
@@ -20,17 +20,17 @@ class MWPixelClock(object):
         self.conduit = Conduit(conduitName)
         self.conduit.initialize()
         self.conduit.register_local_event_code(0,'#stimDisplayUpdate')
-        self.conduit.register_callback_for_name('#stimDisplayUpdate', self.receive_event())
+        self.conduit.register_callback_for_name('#stimDisplayUpdate', self.receive_event)
         self.codes = []
         self.cond = Condition()
         self.maxCodes = 20
     
     def receive_event(self, event):
-        for s in event.value:
+        for s in event.data:
             if s.has_key('bit_code'):
                 self.cond.acquire()
                 self.codes.append((s['bit_code'],event.time/1000000.))
-                logging.debug('MW bit_code = %i' % bit_code)
+                logging.debug('MW bit_code = %i' % s['bit_code'])
                 while len(self.codes) > self.maxCodes:
                     self.codes.pop(0)
                 self.cond.notifyAll()
