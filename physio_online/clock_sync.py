@@ -5,6 +5,7 @@ import copy, logging, time
 from threading import Condition
 
 import numpy as np
+import zmq
 
 from mworks.conduit import IPCClientConduit as Conduit
 
@@ -31,9 +32,11 @@ class MWPixelClock(object):
     
     def receive_event(self, event):
         for s in event.data:
+            if s is None:
+                continue
             if s.has_key('bit_code'):
                 self.cond.acquire()
-                self.codes.append((s['bit_code'],event.time/1000000.))
+                self.codes.append((event.time/1000000.,s['bit_code']))
                 # if len(self.codes) > 2:
                 #     #logging.debug('MW bit_code = %i' % s['bit_code'])
                 #     #print s['bit_code']
@@ -65,14 +68,14 @@ class AudioPixelClock(object):
         self.maxCodes = 100
         
         self.minEventTime = 0.01 * 44100
-        self.lastEventTime = -minEventTime
+        self.lastEventTime = 0#-self.minEventTime
     
     def update(self):
         try:
             packet = self.socket.recv(zmq.NOBLOCK)
             self._mb.ParseFromString(packet)
             self.process_msg(self._mb)
-        except:
+        except Exception as e:
             return
     
     def offset_time(self, time, channel_id):
@@ -83,12 +86,12 @@ class AudioPixelClock(object):
         return time
     
     def process_msg(self, mb):
-        self.state[mb.channel_id] = mb.direction
-        if abs(mw.time_stamp - self.lastEventTime) > self.minEventTime:
-            self.codes.append((self.lastEventTime, state_to_code(self.state)))
+        if abs(mb.time_stamp - self.lastEventTime) > self.minEventTime:
+            self.codes.append((self.lastEventTime / 44100, state_to_code(self.state)))
             while len(self.codes) > self.maxCodes:
                 self.codes.pop(0)
             self.lastEventTime = self.offset_time(mb.time_stamp, mb.channel_id)
+        self.state[mb.channel_id] = mb.direction
 
 def time_match_mw_with_pc(pc_codes, pc_times, mw_codes, mw_times,
                                 submatch_size = 10, slack = 0, max_slack=10,
@@ -140,7 +143,9 @@ def find_matches(auCodes, mwCodes):
     auT = [au[0] for au in auCodes]
     mwC = [mw[1] for mw in mwCodes]
     mwT = [mw[0] for mw in mwCodes]
-    
+    print "matching"
+    print mwC
+    print auC
     return time_match_mw_with_pc(auC,auT,mwC,mwT)
 
 if __name__ == '__main__':
@@ -160,7 +165,9 @@ if __name__ == '__main__':
         auPC.update()
         auCodes = auPC.codes
         
-        if (len(mwCodes) > minLength) and (len(auCodes) > minLength)):
+        if (len(mwCodes) > minLength) and (len(auCodes) > minLength):
             match = find_matches(auCodes, mwCodes)
+            if len(match):
+                print match
         
         time.sleep(0.001)
