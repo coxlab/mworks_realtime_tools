@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-
-
-import logging, time
+import copy, logging, time
 
 from threading import Condition
 
@@ -10,13 +8,16 @@ import numpy as np
 
 from mworks.conduit import IPCClientConduit as Conduit
 
-from spike_listener import SpikeListener
+from pixel_clock_info_pb2 import PixelClockInfoBuffer
 
-def delta_code(code1, code0):
-    deltas = [0,0,0,0] # 0 is lsb
-    for i in xrange(4):
-        deltas[i] = ((code1 >> i) & 1) - ((code0 >> i) & 1)
-    return deltas
+def state_to_code(state):
+    """
+    state[0] = lsb, state[-1] = msb
+    """
+    code = 0
+    for i in xrange(len(state)):
+        code += (state[i] << i)
+    return code
 
 class MWPixelClock(object):
     def __init__(self, conduitName):
@@ -42,100 +43,105 @@ class MWPixelClock(object):
                 self.cond.notifyAll()
                 self.cond.release()
     
-    def get_deltas(self):
-        """
-        Return a list of (delta_code, time_of_delta)
-        """
+    def get_codes(self):
         self.cond.acquire()
-        deltas = [(delta_code(self.codes[i+1][0],self.codes[i][0]),self.codes[i+1][1]) for i in xrange(len(self.codes)-1)]
+        codes = copy.deepcopy(self.codes)
         self.cond.release()
-        return deltas
+        return codes
 
-class AudioPixelClock(SpikeListener):
-    def __init__(self, pathFunc, downIndices, zmqContext=None):
-        # pixel clock channel 4 is closest to the middle of the screen
-        # channel 1 is closest to the bottom edge
-        # channel 1 is connected to audio input 33
-        # bottom (1/33) is least significant bit
-        self.downIndices = list(downIndices)
-        SpikeListener.__init__(self, pathFunc, self.downIndices, zmqContext)
-        self.downs = []
-        self.maxDowns = 400
-        self.maxEventTime = 0.002 # maximum amount of time between 'downs' for a pixel clock event
+class AudioPixelClock(object):
+    def __init__(self, pathFunc, channelIndices, zmqContext=None):
+        if zmqContext == None:
+            zmqContext = zmq.Context()
+        
+        self.socket = zmqContext.socket(zmq.SUB)
+        for i in channelIndices:
+            self.socket.connect(pathFunc(i))
+        self.socket.setsockopt(zmq.SUBSCRIBE,"")
+        self._mb = PixelClockInfoBuffer()
+        
+        self.codes = []
+        self.state = [0,0,0,0]
+        self.maxCodes = 100
+        
+        self.minEventTime = 0.01 * 44100
+        self.lastEventTime = -minEventTime
     
-    def process_spike(self, wb):
-        if (wb.wave_sample[0] - wb.wave_sample[-1]) > 0.01: # only record for downward waveforms
-            self.downs.append((self.downIndices.index(wb.channel_id),wb.time_stamp/44100.))
-            while len(self.downs) > self.maxDowns:
-                self.downs.pop(0)
+    def update(self):
+        try:
+            packet = self.socket.recv(zmq.NOBLOCK)
+            self._mb.ParseFromString(packet)
+            self.process_msg(self._mb)
+        except:
+            return
     
-    def get_deltas(self):
+    def offset_time(self, time, channel_id):
         """
-        Return a list of (delta_code, time_of_delta)
-        All deltas will ONLY contain -1 or 0 values
+        This function is here to offset of a given event based on it's position on the screen.
+        The resulting time should correspond to the END of the screen refresh
         """
-        if len(self.downs) == 0:
-            return []
-        deltas = []
-        delta = [0, 0, 0, 0]
-        firstTime = self.downs[0][1]
-        for down in self.downs:
-            if abs(down[1] - firstTime) < self.maxEventTime:
-                if delta[down[0]] == -1:
-                    logging.warning("setting two downs: %s at %d" % (str(down), firstTime))
-                delta[down[0]] = -1
-            else:
-                deltas.append((delta,firstTime))
-                # get ready for next event
-                delta = [0,0,0,0]
-                delta[down[0]] = -1
-                firstTime = down[1]
-        return deltas
+        return time
+    
+    def process_msg(self, mb):
+        self.state[mb.channel_id] = mb.direction
+        if abs(mw.time_stamp - self.lastEventTime) > self.minEventTime:
+            self.codes.append((self.lastEventTime, state_to_code(self.state)))
+            while len(self.codes) > self.maxCodes:
+                self.codes.pop(0)
+            self.lastEventTime = self.offset_time(mb.time_stamp, mb.channel_id)
 
-# class PixelClock(SpikeListener):
-#     def __init__(self, pathFunc, upIndices, downIndices, zmqContext=None):
-#         self.upIndices = list(upIndices) # to deal with possible xrange(N) arguments
-#         self.downIndices = list(downIndices)
-#         SpikeListener.__init__(self, pathFunc, self.upIndices + self.downIndices, zmqContext)
-#         self.states = [0 for i in xrange(len(self.upIndices))]
-#         self.codes = []
-#         self.maxCodes = 20
-#     
-#     def process_spike(self, wb):
-#         try:
-#             if wb.channel_id in self.upIndices:
-#                 index = self.upIndices.index(wb.channel_id)
-#                 delta = +1
-#             else:
-#                 index = self.downIndices.index(wb.channel_id)
-#                 delta = -1
-#         except:
-#             logging.warning("Pixel clock failed to parse spike waveform: %i" % wb.channel_id)
-#             return
-#         self.states[index] += delta
-#         self.eventTimes[index] = wb.time_stamp
-#         if self.states[index] < 0:
-#             logging.debug("Pixel clock channel %i detected two downs" % index)
-#             self.states[index] = 0
-#         if self.states[index] > 1:
-#             logging.debug("Pixel clock channel %i detected two ups" % index)
-#             self.states[index] = 1
-#         self.calculate_code()
-#     
-#     def get_code_time_stamp(self):
-#         """
-#         This should be more complex taking into account the position of the various sensors etc...
-#         """
-#         return max(self.eventTimes)
-#     
-#     def calculate_code(self):
-#         code = 0
-#         for s in self.states:
-#             code = (code << 1) + s
-#         t = self.get_time()
-#         self.codes.append((code,t))
-#         while len(self.codes) > self.maxCodes:
-#             self.pop(0)
+def time_match_mw_with_pc(pc_codes, pc_times, mw_codes, mw_times,
+                                submatch_size = 10, slack = 0, max_slack=10,
+                                pc_check_stride = 100, pc_file_offset= 0):
+
+    time_matches = []
+
+    for pc_start_index in range(0, len(pc_codes)-submatch_size, pc_check_stride):
+        match_sequence = pc_codes[pc_start_index:pc_start_index+submatch_size]
+        pc_time = pc_times[pc_start_index]
+
+        for i in range(0, len(mw_codes) - submatch_size - max_slack):
+            good_flag = True
+
+            total_slack = 0
+            for j in range(0, submatch_size):
+                target = match_sequence[j]
+                if target != mw_codes[i+j+total_slack]:
+                    slack_match = False
+                    slack_count = 0
+                    while slack_count < slack and j != 0:
+                        slack_count += 1
+                        total_slack += 1
+                        if target == mw_codes[i+j+total_slack]:
+                            slack_match = True
+                            break
+
+                    if total_slack > max_slack:
+                        good_flag = False
+                        break
+
+                    if not slack_match:
+                        # didn't find a match within slack
+                        good_flag = False
+                        break
+
+            if good_flag:
+                logging.info("Total slack: %d" % total_slack)
+                logging.info("%s matched to %s" % \
+                      (match_sequence, mw_codes[i:i+submatch_size+total_slack]))
+                time_matches.append((pc_time, mw_times[i]))
+                break
+
+    # print time_matches
+    return time_matches
+
+def find_matches(auCodes, mwCodes):
+    auC = [au[1] for au in auCodes]
+    auT = [au[0] for au in auCodes]
+    mwC = [mw[1] for mw in mwCodes]
+    mwT = [mw[0] for mw in mwCodes]
+    
+    return time_match_mw_with_pc(auC,auT,mwC,mwT)
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
@@ -143,127 +149,18 @@ if __name__ == '__main__':
     conduitName = 'server_event_conduit'
     mwPC = MWPixelClock(conduitName)
     
-    pathFunc = lambda i : "tcp://127.0.0.1:%i" % (i+8000) 
-    aPC = AudioPixelClock(pathFunc, range(33,37))
+    #pathFunc = lambda i : "tcp://127.0.0.1:%i" % (i+8000) 
+    pathFunc = lambda i : "ipc:///tmp/pixel_clock/%i" % i
+    auPC = AudioPixelClock(pathFunc, range(4))
     
-    def delta_to_num(delta):
-        num = 0
-        # 0 is lsb
-        for i in xrange(4):
-            if delta[i] == -1:
-                num += (1 << i)
-        return num
-    
-    def find_match(a,k):
-        minMatch = -1.
-        matchVal = np.inf
-        for o in xrange(len(a)-len(k)):
-            m = sum(abs(a[o:o+len(k)] - k))/float(len(k))
-            if m <= matchVal:
-                minMatch = o
-                matchVal = m
-                #logging.debug('Match: %i %.2f' % (o, m))
-        return minMatch, matchVal, len(k)
-    
-    def compare_matches(m1, m2):
-        if (m2[2] >= m1[2]) and (m2[1] <= m1[1]): # takes care of = and m2>m1
-            return m2
-        if (m1[2] >= m2[2]) and (m1[1] < m2[1]): # takes care of m1>m2
-            return m1
-        # somewhat ambiguous as length and val comparisons do not agree
-        if ((m2[1] * m2[2]) < (m1[1] * m1[2])):
-            return m2
-        else:
-            return m1
-    
-    aNums = []
-    mwNums = []
-    prevMatch = (0, np.inf, 0, 0)
+    minLength = 10
     
     while 1:
-        mwDeltas = mwPC.get_deltas()
-        if len(mwDeltas):
-            mwNums = np.array([delta_to_num(d[0]) for d in mwDeltas])
-        # if len(mwDeltas):
-        #     mwDelta = mwDeltas[-1][0]
-        #     if mwDelta != oldMWDelta:
-        #         print "MW:",
-        #         for mw in mwDelta:
-        #             print "%+i" % mw,
-        #         print
-        #         oldMWDelta = mwDelta
-        # if len(mwDeltas):
-        #     logging.debug("Most recent mw delta: %s" % str(mwDeltas[-1]))
-        #logging.debug("Deltas %s" % d)
+        mwCodes = mwPC.get_codes()
+        auPC.update()
+        auCodes = auPC.codes
         
-        
-        aPC.update()
-        aDeltas = aPC.get_deltas()
-        if len(aDeltas):
-            aNums = np.array([delta_to_num(d[0]) for d in aDeltas])
-        #     aDelta = aDeltas[-1][0]
-        #     if aDelta != oldADelta:
-        #         print "\t\tAU:",
-        #         for a in aDelta:
-        #             print "%+i" % a,
-        #         print
-        #         oldADelta = aDelta
-        # if len(aDeltas):
-        #     logging.debug("Most recent audio delta: %s" % str(aDeltas[-1]))
-        kSize = 25
-        if len(aNums) > kSize and len(mwNums) > kSize:
-            mwToA = find_match(aNums, mwNums[-kSize:])
-            mwT = mwDeltas[-1][1]
-            aT = aDeltas[mwToA[0]+kSize-1][1]
-            mwToAOffset = aT - mwT
-            mwToA += (mwToAOffset,)
-            
-            aToMW = find_match(mwNums, aNums[-kSize:])
-            mwT = mwDeltas[aToMW[0]+kSize-1][1]
-            aT = aDeltas[-1][1]
-            aToMWOffset = aT - mwT
-            aToMW += (aToMWOffset,)
-            
-            match = compare_matches(mwToA, aToMW)
-            offset = match[3]
-            
-            if (match[0] != 1):
-                bestMatch = compare_matches(match, prevMatch)
-                if bestMatch != prevMatch:
-                    logging.debug("Match: %s" % str(match))
-                    prevMatch = match
-            
-        # if len(aNums) and len(mwNums):
-        #     if len(aNums) < len(mwNums):
-        #         match = find_match(mwNums, aNums)
-        #         if match[0] != -1:
-        #             d1 = mwDeltas[match[0]+len(aNums)-1]
-        #             d2 = aDeltas[-1]
-        #             # logging.debug("Offset for delta codes: %s, %s" % (str(d1), str(d2)))
-        #             offset = d1[1] - d2[1]
-        #     else:
-        #         match = find_match(aNums, mwNums)
-        #         if match[0] != -1:
-        #             d1 = mwDeltas[-1]
-        #             d2 = aDeltas[match[0]+len(mwNums)-1]
-        #             # logging.debug("Offset for delta codes: %s, %s" % (str(d1), str(d2)))
-        #             offset = d1[1] - d2[1]
-            # if (match[0] != -1): # match was found
-            #     if ((match[1] < matchVal) and (match[2] >= matchLen)) or \
-            #         ((match[2] > matchLen) and (match[1] <= matchVal)): # it is a better match
-            #         if (match[2] < 10):
-            #             logging.debug("Match %s was too short" % str(match))
-            #             continue
-            #         logging.debug("%.2f %.2f, %i %i" % (match[1], matchVal, match[2], matchLen))
-            #         matchIndex = match[0]
-            #         matchVal = match[1]
-            #         matchLen = match[2]
-            #         if offset != oldOffset:
-            #             logging.debug("Match: I:%i, V:%.2f, L:%i Offset: %f" % (match[0], match[1], match[2], offset))
-            #             oldOffset = offset
-            # if (match[0] != -1) and (offset != oldOffset):
-            #     #logging.debug("Offset for delta codes: %s, %s" % (str(d1), str(d2)))
-            #     logging.debug("Match: I:%i, V:%.2f, L:%i Offset: %f" % (match[0], match[1], match[2], offset))
-            #     oldOffset = offset
+        if (len(mwCodes) > minLength) and (len(auCodes) > minLength)):
+            match = find_matches(auCodes, mwCodes)
         
         time.sleep(0.001)
