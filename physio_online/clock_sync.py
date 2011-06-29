@@ -20,40 +20,16 @@ def state_to_code(state):
         code += (state[i] << i)
     return code
 
-class MWPixelClock(object):
-    def __init__(self, conduitName):
+class ClockSync(object):
+    def __init__(self, conduitName, pathFunc, channelIndices, minMatch=10, maxErr=1, zmqContext=None):
         self.conduit = Conduit(conduitName)
         self.conduit.initialize()
         self.conduit.register_local_event_code(0,'#stimDisplayUpdate')
-        self.conduit.register_callback_for_name('#stimDisplayUpdate', self.receive_event)
-        self.codes = []
+        self.conduit.register_callback_for_name('#stimDisplayUpdate', self.receive_mw_event)
+        self.mwCodes = []
+        self.mwTimes = []
         self.cond = Condition()
-        self.maxCodes = 100
-    
-    def receive_event(self, event):
-        for s in event.data:
-            if s is None:
-                continue
-            if s.has_key('bit_code'):
-                self.cond.acquire()
-                self.codes.append((event.time/1000000.,s['bit_code']))
-                # if len(self.codes) > 2:
-                #     #logging.debug('MW bit_code = %i' % s['bit_code'])
-                #     #print s['bit_code']
-                #     #logging.debug("MW Delta: %s" % delta_code(self.codes[-1][0], self.codes[-2][0]))
-                while len(self.codes) > self.maxCodes:
-                    self.codes.pop(0)
-                self.cond.notifyAll()
-                self.cond.release()
-    
-    def get_codes(self):
-        self.cond.acquire()
-        codes = copy.deepcopy(self.codes)
-        self.cond.release()
-        return codes
-
-class AudioPixelClock(object):
-    def __init__(self, pathFunc, channelIndices, zmqContext=None):
+        
         if zmqContext == None:
             zmqContext = zmq.Context()
         
@@ -63,12 +39,33 @@ class AudioPixelClock(object):
         self.socket.setsockopt(zmq.SUBSCRIBE,"")
         self._mb = PixelClockInfoBuffer()
         
-        self.codes = []
+        self.auCodes = []
+        self.auTimes = []
         self.state = [0,0,0,0]
-        self.maxCodes = 100
         
         self.minEventTime = 0.01 * 44100
-        self.lastEventTime = 0#-self.minEventTime
+        self.lastEventTime = 0
+        
+        self.offset = None
+        
+        self.minMatch = 10
+        self.maxErr = 1
+        self.maxCodes = (minMatch + maxErr) * 2
+    
+    def receive_mw_event(self, event):
+        for s in event.data:
+            if s is None:
+                continue
+            if s.has_key('bit_code'):
+                self.cond.acquire()
+                self.mwCodes.append(s['bit_code'])
+                self.mwTimes.append(event.time/1000000.)
+                while len(self.mwCodes) > self.maxCodes:
+                    self.mwCodes.pop(0)
+                while len(self.mwTimes) > self.maxCodes:
+                    self.mwTimes.pop(0)
+                self.cond.notifyAll()
+                self.cond.release()
     
     def update(self):
         try:
@@ -78,96 +75,130 @@ class AudioPixelClock(object):
         except Exception as e:
             return
     
-    def offset_time(self, time, channel_id):
+    def offset_au_time(self, time, channel_id):
         """
         This function is here to offset of a given event based on it's position on the screen.
         The resulting time should correspond to the END of the screen refresh
+        The resulting time should be in units SAMPLES (e.g. 44100 per second)
         """
         return time
     
     def process_msg(self, mb):
         if abs(mb.time_stamp - self.lastEventTime) > self.minEventTime:
-            self.codes.append((self.lastEventTime / 44100, state_to_code(self.state)))
-            while len(self.codes) > self.maxCodes:
-                self.codes.pop(0)
-            self.lastEventTime = self.offset_time(mb.time_stamp, mb.channel_id)
+            self.auCodes.append(state_to_code(self.state))
+            self.auTimes.append(self.lastEventTime / 44100)
+            while len(self.auCodes) > self.maxCodes:
+                self.auCodes.pop(0)
+            while len(self.auTimes) > self.maxCodes:
+                self.auTimes.pop(0)
+            self.lastEventTime = self.offset_au_time(mb.time_stamp, mb.channel_id)
         self.state[mb.channel_id] = mb.direction
+    
+    def match(self):
+        self.cond.acquire()
+        ml, err, lastMatch = match_codes(self.mwCodes, self.auCodes, self.minMatch, self.maxErr)
+        if err < self.maxErr:
+            self.offset = self.mwTimes[lastMatch[0]] - self.auTimes[lastMatch[1]]
+        self.cond.release()
+    
+    def mw_to_au(self, mwTime):
+        return mwTime - self.offset
+    
+    def au_to_mw(self, auTime):
+        return auTime + self.offset
 
-def time_match_mw_with_pc(pc_codes, pc_times, mw_codes, mw_times,
-                                submatch_size = 10, slack = 0, max_slack=10,
-                                pc_check_stride = 100, pc_file_offset= 0):
+# ======= code matching =========
 
-    time_matches = []
+def test_match(mw, au, minMatch, maxErr):
+    mwI = 0
+    auI = 0
+    err = 0
+    matchLen = 0
+    lastMatch = (-1,-1)
+    while (mwI < len(mw)) and (auI < len(au)):
+        if mw[mwI] == au[auI]:
+            matchLen += 1
+            lastMatch = (mwI, auI)
+            mwI += 1
+            auI += 1
+            # if (matchLen > minMatch):
+            #     return (matchLen, err, lastMatch)
+        else:
+            auI += 1
+            err += 1
+            if (err >= maxErr):
+                return (matchLen, err, lastMatch)
+            # if (mwI < (len(mw) - 1)):
+            #     if (auI < (len(au) - 1)):
+            #         # both auI and mwI can be increased
+            #         if (mw[mwI+1] == au[auI]):
+            #             mwI += 1
+            #             err += 1
+            #         elif (mw[mwI] == au[auI+1]):
+            #             auI += 1
+            #             err += 1
+            #         else:
+            #             auI += 1
+            #             err += 1
+            #     else:
+            #         mwI += 1
+            #         err += 1
+            # elif (auI < (len(au) - 1)):
+            #     auI += 1
+            #     err += 1
+            # else:
+            #     break
+    return (matchLen, err, lastMatch)
 
-    for pc_start_index in range(0, len(pc_codes)-submatch_size, pc_check_stride):
-        match_sequence = pc_codes[pc_start_index:pc_start_index+submatch_size]
-        pc_time = pc_times[pc_start_index]
+def match_codes(mw, au, minMatch = 10, maxErr = 1):
+    # matchAttempts = []
+    for mwI in xrange(len(mw)):
+        #if (mw[mwI] in au):
+        try:
+            startI = au.index(mw[mwI])
+            matchLen, err, lastMatch = test_match(mw[startI:], au, minMatch, maxErr)
+            # matchAttempts.append((matchLen, err, lastMatch))
+            if (matchLen > minMatch) and (err < maxErr):
+                # correct lastMatch
+                lastMatch = (lastMatch[0]+startI, lastMatch[1])
+                return (matchLen, err, lastMatch)
+        except ValueError:
+            pass
+    return (0, maxErr * 2, (-1,-1))
 
-        for i in range(0, len(mw_codes) - submatch_size - max_slack):
-            good_flag = True
-
-            total_slack = 0
-            for j in range(0, submatch_size):
-                target = match_sequence[j]
-                if target != mw_codes[i+j+total_slack]:
-                    slack_match = False
-                    slack_count = 0
-                    while slack_count < slack and j != 0:
-                        slack_count += 1
-                        total_slack += 1
-                        if target == mw_codes[i+j+total_slack]:
-                            slack_match = True
-                            break
-
-                    if total_slack > max_slack:
-                        good_flag = False
-                        break
-
-                    if not slack_match:
-                        # didn't find a match within slack
-                        good_flag = False
-                        break
-
-            if good_flag:
-                logging.info("Total slack: %d" % total_slack)
-                logging.info("%s matched to %s" % \
-                      (match_sequence, mw_codes[i:i+submatch_size+total_slack]))
-                time_matches.append((pc_time, mw_times[i]))
-                break
-
-    # print time_matches
-    return time_matches
-
-def find_matches(auCodes, mwCodes):
-    auC = [au[1] for au in auCodes]
-    auT = [au[0] for au in auCodes]
-    mwC = [mw[1] for mw in mwCodes]
-    mwT = [mw[0] for mw in mwCodes]
-    print "matching"
-    print mwC
-    print auC
-    return time_match_mw_with_pc(auC,auT,mwC,mwT)
+# ===============================
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     
     conduitName = 'server_event_conduit'
-    mwPC = MWPixelClock(conduitName)
-    
-    #pathFunc = lambda i : "tcp://127.0.0.1:%i" % (i+8000) 
     pathFunc = lambda i : "ipc:///tmp/pixel_clock/%i" % i
-    auPC = AudioPixelClock(pathFunc, range(4))
-    
-    minLength = 10
+    cs = ClockSync(conditName, pathFunc, range(4))
     
     while 1:
-        mwCodes = mwPC.get_codes()
-        auPC.update()
-        auCodes = auPC.codes
-        
-        if (len(mwCodes) > minLength) and (len(auCodes) > minLength):
-            match = find_matches(auCodes, mwCodes)
-            if len(match):
-                print match
+        cs.update()
+        if not (cs.offset is None):
+            print cs.offset
         
         time.sleep(0.001)
+    
+    # conduitName = 'server_event_conduit'
+    #     mwPC = MWPixelClock(conduitName)
+    #     
+    #     #pathFunc = lambda i : "tcp://127.0.0.1:%i" % (i+8000) 
+    #     pathFunc = lambda i : "ipc:///tmp/pixel_clock/%i" % i
+    #     auPC = AudioPixelClock(pathFunc, range(4))
+    #     
+    #     minLength = 10
+    #     
+    #     while 1:
+    #         mwCodes = mwPC.get_codes()
+    #         auPC.update()
+    #         auCodes = auPC.codes
+    #         
+    #         if (len(mwCodes) > minLength) and (len(auCodes) > minLength):
+    #             match = find_matches(auCodes, mwCodes)
+    #             if len(match):
+    #                 print match
+    #         
+    #         time.sleep(0.001)
