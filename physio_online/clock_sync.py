@@ -26,8 +26,9 @@ class ClockSync(object):
         self.conduit.initialize()
         self.conduit.register_local_event_code(0,'#stimDisplayUpdate')
         self.conduit.register_callback_for_name('#stimDisplayUpdate', self.receive_mw_event)
-        self.mwCodes = []
-        self.mwTimes = []
+        self.mwEvents = []
+        # self.mwCodes = []
+        # self.mwTimes = []
         self.cond = Condition()
         
         if zmqContext == None:
@@ -39,14 +40,15 @@ class ClockSync(object):
         self.socket.setsockopt(zmq.SUBSCRIBE,"")
         self._mb = PixelClockInfoBuffer()
         
-        self.auCodes = []
-        self.auTimes = []
+        self.auEvents = []
+        # self.auCodes = []
+        # self.auTimes = []
         self.state = [0,0,0,0]
         
         # screen 53 cm high ~ pixel clock 7 cm high : assume a 2ms screen refresh
         # so 53 / 2 cm/ms
         # pc channels at 
-        self.auChannelOffsets = [86, 84, 81, 79] # [2,5,7,9]
+        self.auChannelOffsets = [2,5,7,9] #[86, 84, 81, 79] 
         
         self.minEventTime = 0.01 * 44100
         self.lastEventTime = 0
@@ -65,12 +67,15 @@ class ClockSync(object):
                 continue
             if s.has_key('bit_code'):
                 self.cond.acquire()
-                self.mwCodes.append(s['bit_code'])
-                self.mwTimes.append(event.time/1000000.)
-                while len(self.mwCodes) > self.maxCodes:
-                    self.mwCodes.pop(0)
-                while len(self.mwTimes) > self.maxCodes:
-                    self.mwTimes.pop(0)
+                self.mwEvents.append((event.time/1000000., s['bit_code']))
+                # self.mwCodes.append(s['bit_code'])
+                # self.mwTimes.append(event.time/1000000.)
+                while len(self.mwEvents) > self.maxCodes:
+                    self.mwEvents.pop(0)
+                # while len(self.mwCodes) > self.maxCodes:
+                #     self.mwCodes.pop(0)
+                # while len(self.mwTimes) > self.maxCodes:
+                #     self.mwTimes.pop(0)
                 self.cond.notifyAll()
                 self.cond.release()
     
@@ -94,23 +99,30 @@ class ClockSync(object):
     def process_msg(self, mb):
         time_stamp = self.offset_au_time(mb.time_stamp, mb.channel_id)
         if abs(time_stamp - self.lastEventTime) > self.minEventTime:
-            self.auCodes.append(state_to_code(self.state))
-            self.auTimes.append(self.lastEventTime / 44100)
-            while len(self.auCodes) > self.maxCodes:
-                self.auCodes.pop(0)
-            while len(self.auTimes) > self.maxCodes:
-                self.auTimes.pop(0)
+            self.auEvents.append((self.lastEventTime / 44100.,state_to_code(self.state)))
+            # self.auCodes.append(state_to_code(self.state))
+            # self.auTimes.append(self.lastEventTime / 44100)
+            while len(self.auEvents) > self.maxCodes:
+                self.auEvents.pop(0)
+            # while len(self.auCodes) > self.maxCodes:
+            #     self.auCodes.pop(0)
+            # while len(self.auTimes) > self.maxCodes:
+            #     self.auTimes.pop(0)
             self.lastEventTime = self.offset_au_time(mb.time_stamp, mb.channel_id)
         self.state[mb.channel_id] = mb.direction
     
-    def set_offset(self, matches):
-        pass
-    
     def match(self):
         self.cond.acquire()
-        ml, err, lastMatch, matches = match_codes(self.mwCodes, self.auCodes, self.minMatch, self.maxErr)
+        mwC = [mw[1] for mw in self.mwEvents]
+        auC = [au[1] for au in self.auEvents]
+        ml, err, lastMatch = match_codes(mwC, auC, self.minMatch, self.maxErr)
+        # ml, err, lastMatch, matches = match_codes(self.mwCodes, self.auCodes, self.minMatch, self.maxErr)
         if err <= self.maxErr:
-            self.offset = self.mwTimes[lastMatch[0]] - self.auTimes[lastMatch[1]]
+            offset = self.mwEvents[lastMatch[0]][0] -  self.auEvents[lastMatch[1]][0]
+            # if offset != self.offset:
+                # print self.mwEvents[lastMatch[0]][0], self.mwEvents[lastMatch[0]][1], self.auEvents[lastMatch[1]][0], self.auEvents[lastMatch[1]][1]
+            self.offset = self.mwEvents[lastMatch[0]][0] -  self.auEvents[lastMatch[1]][0]
+            # self.offset = self.mwTimes[lastMatch[0]] - self.auTimes[lastMatch[1]]
             self.err = err
             self.matchLength = ml
         self.cond.release()
@@ -132,12 +144,10 @@ def test_match(mw, au, minMatch, maxErr):
     err = 0
     matchLen = 0
     lastMatch = (-1,-1)
-    matches = []
     while (mwI < len(mw)) and (auI < len(au)):
         if mw[mwI] == au[auI]:
             matchLen += 1
             lastMatch = (mwI, auI)
-            matches.append((mwI, auI))
             mwI += 1
             auI += 1
             # if (matchLen > minMatch):
@@ -146,7 +156,7 @@ def test_match(mw, au, minMatch, maxErr):
             auI += 1
             err += 1
             if (err > maxErr):
-                return (matchLen, err, lastMatch, matches)
+                return (matchLen, err, lastMatch)
             # if (mwI < (len(mw) - 1)):
             #     if (auI < (len(au) - 1)):
             #         # both auI and mwI can be increased
@@ -167,7 +177,7 @@ def test_match(mw, au, minMatch, maxErr):
             #     err += 1
             # else:
             #     break
-    return (matchLen, err, lastMatch, matches)
+    return (matchLen, err, lastMatch)
 
 def match_codes(mw, au, minMatch = 10, maxErr = 1):
     # matchAttempts = []
@@ -175,7 +185,7 @@ def match_codes(mw, au, minMatch = 10, maxErr = 1):
         #if (mw[mwI] in au):
         try:
             startI = au.index(mw[mwI])
-            matchLen, err, lastMatch, matches = test_match(mw[startI:], au, minMatch, maxErr)
+            matchLen, err, lastMatch = test_match(mw[startI:], au, minMatch, maxErr)
             # matchLen, err, lastMatch, matches = test_match(mw, au[startI:], minMatch, maxErr)
             # matchAttempts.append((matchLen, err, lastMatch))
             # if lastMatch != (-1,-1):
@@ -183,10 +193,10 @@ def match_codes(mw, au, minMatch = 10, maxErr = 1):
             if (matchLen > minMatch) and (err <= maxErr):
                 # correct lastMatch
                 lastMatch = (lastMatch[0]+startI, lastMatch[1])
-                return (matchLen, err, lastMatch, matches)
+                return (matchLen, err, lastMatch)
         except ValueError:
             continue
-    return (0, maxErr * 2, (-1,-1), [])
+    return (0, maxErr * 2, (-1,-1))
 
 # ===============================
 
