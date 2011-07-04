@@ -37,6 +37,7 @@ class ClockSync(object):
         self._mb = PixelClockInfoBuffer()
         
         self.auEvents = []
+        self.rawAUEvents = []
         # self.auCodes = []
         # self.auTimes = []
         self.state = [0,0,0,0]
@@ -46,8 +47,9 @@ class ClockSync(object):
         # pc channels at 
         self.auChannelOffsets = [2,5,7,9] #[86, 84, 81, 79] 
         
-        self.minEventTime = 0.01 * 44100
+        self.minEventTime = 0.01 #* 44100
         self.lastEventTime = 0
+        self.lastCode = 0
         
         self.offset = None
         self.err = None
@@ -56,6 +58,7 @@ class ClockSync(object):
         self.minMatch = minMatch
         self.maxErr = maxErr
         self.maxCodes = (minMatch + maxErr) * 2
+        self.maxRawCodes = self.maxCodes * 4
     
     def process_mw_event(self, event):
         for s in event.data:
@@ -80,7 +83,7 @@ class ClockSync(object):
             packet = self.socket.recv(zmq.NOBLOCK)
             self._mb.ParseFromString(packet)
             self.process_msg(self._mb)
-        except Exception as e:
+        except zmq.ZMQError as e:
             return
     
     def offset_au_time(self, time, channel_id):
@@ -94,21 +97,47 @@ class ClockSync(object):
     
     def process_msg(self, mb):
         time_stamp = self.offset_au_time(mb.time_stamp, mb.channel_id)
-        if abs(time_stamp - self.lastEventTime) > self.minEventTime:
-            self.auEvents.append((self.lastEventTime / 44100.,state_to_code(self.state)))
-            # self.auCodes.append(state_to_code(self.state))
-            # self.auTimes.append(self.lastEventTime / 44100)
-            while len(self.auEvents) > self.maxCodes:
-                self.auEvents.pop(0)
-            # while len(self.auCodes) > self.maxCodes:
-            #     self.auCodes.pop(0)
-            # while len(self.auTimes) > self.maxCodes:
-            #     self.auTimes.pop(0)
-            self.lastEventTime = self.offset_au_time(mb.time_stamp, mb.channel_id)
         self.state[mb.channel_id] = mb.direction
+        self.rawAUEvents.append((self.offset_au_time(mb.time_stamp, mb.channel_id) / 44100., state_to_code(self.state)))
+        # if abs(time_stamp - self.lastEventTime) > self.minEventTime:
+        #     self.auEvents.append((self.lastEventTime / 44100.,state_to_code(self.state)))
+        #     # self.auCodes.append(state_to_code(self.state))
+        #     # self.auTimes.append(self.lastEventTime / 44100)
+        #     while len(self.auEvents) > self.maxCodes:
+        #         self.auEvents.pop(0)
+        #     # while len(self.auCodes) > self.maxCodes:
+        #     #     self.auCodes.pop(0)
+        #     # while len(self.auTimes) > self.maxCodes:
+        #     #     self.auTimes.pop(0)
+        #     self.lastEventTime = self.offset_au_time(time_stamp, mb.channel_id)
+        # self.state[mb.channel_id] = mb.direction
+    
+    def process_raw_au_events(self):
+        # print self.rawAUEvents
+        if len(self.rawAUEvents) == 0:
+            return
+        self.rawAUEvents = sorted(self.rawAUEvents, lambda x, y: cmp(x[0],y[0]))
+        lastI = -1
+        for (i,au) in enumerate(self.rawAUEvents):
+            if abs(au[0] - self.lastEventTime) > self.minEventTime:
+                self.auEvents.append((self.lastEventTime,self.lastCode))#au[1]))
+                while len(self.auEvents) > self.maxCodes:
+                    self.auEvents.pop(0)
+                self.lastEventTime = au[0]#self.offset_au_time(time_stamp, mb.channel_id)
+                # self.lastCode = au[1]
+                lastI = i
+            self.lastCode = au[1]
+        if lastI != -1:
+            # remove processed events
+            self.lastCode = self.rawAUEvents[lastI][1]
+            self.rawAUEvents = self.rawAUEvents[lastI+1:]
     
     def match(self):
         self.cond.acquire()
+        # sort codes
+        # self.mwEvents = sorted(self.mwEvents, lambda x, y: cmp(x[0],y[0]))
+        # self.auEvents = sorted(self.auEvents, lambda x, y: cmp(x[0],y[0]))
+        self.process_raw_au_events()
         mwC = [mw[1] for mw in self.mwEvents]
         auC = [au[1] for au in self.auEvents]
         ml, err, lastMatch = match_codes(mwC, auC, self.minMatch, self.maxErr)
@@ -118,6 +147,7 @@ class ClockSync(object):
             # if offset != self.offset:
                 # print self.mwEvents[lastMatch[0]][0], self.mwEvents[lastMatch[0]][1], self.auEvents[lastMatch[1]][0], self.auEvents[lastMatch[1]][1]
             self.offset = self.mwEvents[lastMatch[0]][0] -  self.auEvents[lastMatch[1]][0]
+            logging.debug("ClockSync.offset = %.4f" % self.offset)
             # self.offset = self.mwTimes[lastMatch[0]] - self.auTimes[lastMatch[1]]
             self.err = err
             self.matchLength = ml
@@ -213,17 +243,21 @@ if __name__ == '__main__':
     while 1:
         cs.update()
         cs.match()
-        # print "mw =", cs.mwCodes
-        # if len(cs.mwCodes):
-        #     if np.any(np.array(cs.mwCodes[1:]) == np.array(cs.mwCodes[:-1])):
-        #         print "Repeat found!"
-        # print "au =", cs.auCodes
+        mwC = [e[1] for e in cs.mwEvents]
+        auC = [e[1] for e in cs.auEvents]
+        # print "au =", auC
+        # print "aut=", ["%.3f" % e[0] for e in cs.auEvents]
+        # print "mw =", mwC
+        if len(mwC):
+            if np.any(np.array(mwC[1:]) == np.array(mwC[:-1])):
+                print "Repeat found!"
+
         if not (cs.offset is None):
             if cs.offset != offset:
                 offset = cs.offset
                 print offset, cs.matchLength, cs.err
         
-        time.sleep(0.001)
+        time.sleep(0.03)
     
     # conduitName = 'server_event_conduit'
     #     mwPC = MWPixelClock(conduitName)
