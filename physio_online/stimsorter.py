@@ -59,7 +59,7 @@ class StimTimer(StimSorter):
         self.times = {}
         self.blacklist = blacklist
     
-    def process_event(self, event, conv=1./1000000.):
+    def process_mw_event(self, event, conv=1./1000000.):
         """
         Process a #stimDisplayUpdate, adding any new stimuli to
         self.stimList and recording the presentation time of any stimuli in
@@ -137,7 +137,7 @@ if __name__ == '__main__':
     stimTimer = StimTimer()
     
     for e in evs:
-        stimTimer.process_event(e)
+        stimTimer.process_mw_event(e)
         
         # for s in e.value:
         #     if (not (s is None)) and (not (s['name'] in ['BlankScreenGray','pixel clock'])):

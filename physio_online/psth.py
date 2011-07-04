@@ -17,6 +17,14 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 class LivePSTH:
+    def __init__(self, ax):
+        self.axes = ax
+    def draw_spikes(self, spikes):
+        self.axes.figure.clf()
+        self.axes.hist(spikes,bins=np.linspace(-0.1,0.5,25),alpha=0.5,color='k')
+        self.axes.figure.canvas.draw()
+
+class OLDLivePSTH:
     def __init__(self, ax, nChans=32):
         _,_,patches = ax.hist([0],bins=np.linspace(-0.1,0.5,25),alpha=0.5,color='k') # bin into 24 bins
         self.patches = patches
@@ -60,10 +68,11 @@ class LivePSTH:
         self.update_patches()
 
 class VerticalSelect(object):
-    def __init__(self, axes, nOptions, initial=0, title=''):
+    def __init__(self, axes, nOptions, initial=0, title='', updateFunc=None):
         self.axes = axes
         self.patch = axes.barh([initial],[1],height=1.)[0]
         self.item = initial
+        self.updateFunc = updateFunc
         axes.set_yticks(np.arange(nOptions)+0.5)
         axes.set_yticklabels(np.arange(1,nOptions+1),va='center',stretch='expanded')
         axes.set_ylim([0,nOptions])
@@ -82,6 +91,8 @@ class VerticalSelect(object):
         self.item = item
         self.patch.set_y(item)
         self.axes.figure.canvas.draw()
+        if not (self.updateFunc is None):
+            updateFunc.__call__(item)
 
 if __name__ == '__main__':
     fig = plt.figure()

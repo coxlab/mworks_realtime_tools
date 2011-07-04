@@ -21,11 +21,7 @@ def state_to_code(state):
     return code
 
 class ClockSync(object):
-    def __init__(self, conduitName, pathFunc, channelIndices, minMatch=10, maxErr=1, zmqContext=None):
-        self.conduit = Conduit(conduitName)
-        self.conduit.initialize()
-        self.conduit.register_local_event_code(0,'#stimDisplayUpdate')
-        self.conduit.register_callback_for_name('#stimDisplayUpdate', self.receive_mw_event)
+    def __init__(self, pathFunc, channelIndices, minMatch=10, maxErr=1, zmqContext=None):
         self.mwEvents = []
         # self.mwCodes = []
         # self.mwTimes = []
@@ -61,7 +57,7 @@ class ClockSync(object):
         self.maxErr = maxErr
         self.maxCodes = (minMatch + maxErr) * 2
     
-    def receive_mw_event(self, event):
+    def process_mw_event(self, event):
         for s in event.data:
             if s is None:
                 continue
@@ -203,9 +199,16 @@ def match_codes(mw, au, minMatch = 10, maxErr = 1):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     
-    conduitName = 'server_event_conduit'
     pathFunc = lambda i : "ipc:///tmp/pixel_clock/%i" % i
-    cs = ClockSync(conduitName, pathFunc, range(4))
+    cs = ClockSync(pathFunc, range(4))
+    
+    conduitName = 'server_event_conduit'
+    
+    conduit = Conduit(conduitName)
+    conduit.initialize()
+    conduit.register_local_event_code(0,'#stimDisplayUpdate')
+    conduit.register_callback_for_name('#stimDisplayUpdate', cs.process_mw_event)
+    
     offset = 0
     while 1:
         cs.update()
