@@ -20,8 +20,9 @@ class LivePSTH:
     def __init__(self, ax):
         self.axes = ax
     def draw_spikes(self, spikes):
-        self.axes.figure.clf()
+        self.axes.cla()
         self.axes.hist(spikes,bins=np.linspace(-0.1,0.5,25),alpha=0.5,color='k')
+        self.axes.vlines(0,0,self.axes.get_ylim()[1],color='b')
         self.axes.figure.canvas.draw()
 
 class OLDLivePSTH:
@@ -92,7 +93,7 @@ class VerticalSelect(object):
         self.patch.set_y(item)
         self.axes.figure.canvas.draw()
         if not (self.updateFunc is None):
-            updateFunc.__call__(item)
+            self.updateFunc.__call__(item)
 
 if __name__ == '__main__':
     fig = plt.figure()

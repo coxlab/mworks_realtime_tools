@@ -45,9 +45,10 @@ class ClockSync(object):
         # screen 53 cm high ~ pixel clock 7 cm high : assume a 2ms screen refresh
         # so 53 / 2 cm/ms
         # pc channels at 
-        self.auChannelOffsets = [2,5,7,9] #[86, 84, 81, 79] 
+        # update is bottom -> up so add the most to channel 1
+        self.auChannelOffsets = [86, 84, 81, 79] # [2,5,7,9]
         
-        self.minEventTime = 0.01 #* 44100
+        self.minEventTime = 0.05 #* 44100
         self.lastEventTime = 0
         self.lastCode = 0
         
@@ -58,7 +59,7 @@ class ClockSync(object):
         self.minMatch = minMatch
         self.maxErr = maxErr
         self.maxCodes = (minMatch + maxErr) * 2
-        self.maxRawCodes = self.maxCodes * 4
+        #self.maxRawCodes = self.maxCodes * 4
     
     def process_mw_event(self, event):
         for s in event.data:
@@ -83,8 +84,9 @@ class ClockSync(object):
             packet = self.socket.recv(zmq.NOBLOCK)
             self._mb.ParseFromString(packet)
             self.process_msg(self._mb)
+            return 1
         except zmq.ZMQError as e:
-            return
+            return 0
     
     def offset_au_time(self, time, channel_id):
         """
@@ -113,10 +115,13 @@ class ClockSync(object):
         # self.state[mb.channel_id] = mb.direction
     
     def process_raw_au_events(self):
-        # print self.rawAUEvents
+        # for rau in self.rawAUEvents:
+        #     print "%i @ %.3f" % (rau[1], rau[0])
+        # print
+        # return
         if len(self.rawAUEvents) == 0:
             return
-        self.rawAUEvents = sorted(self.rawAUEvents, lambda x, y: cmp(x[0],y[0]))
+        #self.rawAUEvents = sorted(self.rawAUEvents, lambda x, y: cmp(x[0],y[0]))
         lastI = -1
         for (i,au) in enumerate(self.rawAUEvents):
             if abs(au[0] - self.lastEventTime) > self.minEventTime:
@@ -124,13 +129,15 @@ class ClockSync(object):
                 while len(self.auEvents) > self.maxCodes:
                     self.auEvents.pop(0)
                 self.lastEventTime = au[0]#self.offset_au_time(time_stamp, mb.channel_id)
-                # self.lastCode = au[1]
                 lastI = i
             self.lastCode = au[1]
+            self.lastEventTime = au[0]
         if lastI != -1:
             # remove processed events
             self.lastCode = self.rawAUEvents[lastI][1]
+            self.lastEventTime = self.rawAUEvents[lastI][0]
             self.rawAUEvents = self.rawAUEvents[lastI+1:]
+        # print len(self.rawAUEvents)
     
     def match(self):
         self.cond.acquire()
@@ -241,13 +248,11 @@ if __name__ == '__main__':
     
     offset = 0
     while 1:
-        cs.update()
+        while cs.update():
+            pass
         cs.match()
         mwC = [e[1] for e in cs.mwEvents]
         auC = [e[1] for e in cs.auEvents]
-        # print "au =", auC
-        # print "aut=", ["%.3f" % e[0] for e in cs.auEvents]
-        # print "mw =", mwC
         if len(mwC):
             if np.any(np.array(mwC[1:]) == np.array(mwC[:-1])):
                 print "Repeat found!"
@@ -256,6 +261,10 @@ if __name__ == '__main__':
             if cs.offset != offset:
                 offset = cs.offset
                 print offset, cs.matchLength, cs.err
+        else:
+            print "mw =", mwC
+            print "au =", auC
+            print "aut=", ["%.3f" % e[0] for e in cs.auEvents]
         
         time.sleep(0.03)
     

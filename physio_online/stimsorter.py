@@ -67,7 +67,7 @@ class StimTimer(StimSorter):
             key : index of stimulus in stimList
             val : list of stimulus times (0=oldest)
         """
-        for s in e.value:
+        for s in event.value:
             if (not (s is None)) and (not (s['name'] in self.blacklist)):
                 stim = Stim(s)
                 i = self.find_stim(stim)

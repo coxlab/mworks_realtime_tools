@@ -22,8 +22,9 @@ class SpikeListener:
             packet = self.socket.recv(zmq.NOBLOCK)
             self._wb.ParseFromString(packet)
             self.process_spike(self._wb)
-        except:
-            return
+            return 1
+        except zmq.ZMQError:
+            return 0
     
     def process_spike(self, wb):
         pass

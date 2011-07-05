@@ -3,7 +3,7 @@
 
 execfile('/myPython/bin/activate_this.py', dict(__file__='/myPython/bin/activate_this.py'))
 
-import sys, time
+import logging, sys, threading, time
 
 import zmq
 import numpy as np
@@ -22,17 +22,14 @@ from physio_online import psth
 conduitName = 'server_event_conduit'
 
 if __name__ == '__main__':
-    # channel mapping (tdt to position on probe)
-    global channelMapping
-    channelMapping = [3, 9, 7, 13, 5, 17, 1, 21, 14, 2, 8, 6, 18, 4, 12, 10, 23, 15, 31, 27, 19, 11, 29, 25, 30, 26, 20, 16, 32, 28, 24, 22]    
-    channelNames = [7,10,1,14,5,12,3,11,2,16,22,15,4,9,18,28,6,13,21,27,8,32,17,31,24,26,20,30,23,25,19,29]
+    logging.basicConfig(level=logging.DEBUG)
     
     zmqContext = zmq.Context()
     
     # setup clock sync
     pathFunc = lambda i : "ipc:///tmp/pixel_clock/%i" % i
     global clockSync
-    clockSync = ClockSync(pathFunc, range(4), zmqContext=zmqContext)
+    clockSync = ClockSync(pathFunc, range(4), zmqContext=zmqContext, maxErr=2)
     # needs: clockSync.update() and clockSync.match()
     # if not (cs.offset is None):
     #     if cs.offset != offset:
@@ -54,12 +51,17 @@ if __name__ == '__main__':
     conduit = IPCClientConduit(conduitName)
     conduit.initialize()
     conduit.register_local_event_code(0,'#stimDisplayUpdate')
-    conduit.register_callback_for_name('#stimDisplayUpdate', process_mw_event)
     
     def process_mw_event(event):
         global stimSpikeSyncer, clockSync
+        if event is None:
+            return
+        else:
+            event.value = event.data
         stimSpikeSyncer.process_mw_event(event)
         clockSync.process_mw_event(event)
+    
+    conduit.register_callback_for_name('#stimDisplayUpdate', process_mw_event)
     
     # setup spike listener
     global sl
@@ -69,11 +71,11 @@ if __name__ == '__main__':
     def process_spike(wb): # overload process_spike
         global stimSpikeSyncer, clockSync
         
-        if not (clockSync is None):
+        if not (clockSync.offset is None):
             # spikeMWTime = clockSync.clockSync.au_to_mw(wb.time_stamp/44100.)
-            stimSpikeSyncer.process_spike(wb.channel_id, clockSync.clockSync.au_to_mw(wb.time_stamp/44100.))
+            stimSpikeSyncer.process_spike(wb.channel_id, clockSync.au_to_mw(wb.time_stamp/44100.))
         else:
-            print "Clock not synced!! dropping spike"
+            logging.warning("Clock not synced!! dropping spike on %i" % wb.channel_id)
         # # if not (cs.offset is None):
         # #     if cs.offset != offset:
         # #         offset = cs.offset
@@ -101,26 +103,29 @@ if __name__ == '__main__':
     livepsth = psth.LivePSTH(fig.add_subplot(gs[1]))
     
     global channel
+    channel = 0
     global stim
     # TODO setup default
     stimDict = { 'name': '0',
-                    'pos_x': 0, 'pos_y': 0,
-                    'size_x': 1, 'size_y': 1,
+                    'pos_x': -25, 'pos_y': 0,
+                    'size_x': 70, 'size_y': 70,
                     'rotation': 0 }
     stim = Stim(stimDict)
     
     global transLookup
-    transLookup = [(0.,-1.5), (-1.5, 0.), (0.,0.), (1.5,0.), (0.,-1.5)]
+    transLookup = [(-25,-1.5), (-26.5, 0.), (-25,0.), (-23.5,0.), (-25,-1.5)]
     def set_trans(t):
         global stim, transLookup
         stim.pos_x, stim.pos_y = transLookup[t]
+        get_spikes()
     
     global sizeLookup
-    sizeLookup = [0.75, 1., 1.25]
+    sizeLookup = [35, 70, 140]
     def set_size(s):
         global stim, sizeLookup
         stim.size_x = sizeLookup[s]
         stim.size_y = sizeLookup[s]
+        get_spikes()
     
     def set_name(i):
         global stim
@@ -134,17 +139,23 @@ if __name__ == '__main__':
     
     def get_spikes():
         global clockSync, sl, stimSpikeSyncer
-        sl.update()
-        clockSync.update()
+        while clockSync.update():
+            pass
         clockSync.match()
+        while sl.update():
+            pass
         
         global channel, stim
         stimI = stimSpikeSyncer.find_stim(stim)
         if stimI != -1:
-            spikes = stimSpikeSyncer.get_stim_spikes(channel, stimI):
+            spikes = stimSpikeSyncer.get_stim_spikes(channel, stimI)
             if len(spikes) > 0:
                 global livepsth
                 livepsth.draw_spikes(spikes)
+            else:
+                logging.debug("No spikes on channel %i" % channel)
+        else:
+            logging.warning("Unknown stimulus: %s" % str(stim))
     
     cc = psth.VerticalSelect(fig.add_subplot(gs[0]),32,title='C',updateFunc=set_channel) # channel control
     sc = psth.VerticalSelect(fig.add_subplot(gs[2]),12,title='I',updateFunc=set_name) # stimulus control
@@ -155,5 +166,18 @@ if __name__ == '__main__':
     sc.connect()
     tc.connect()
     zc.connect()
-
+    
+    def update(event):
+        global clockSync, sl, stimSpikeSyncer
+        while sl.update():
+            pass
+        while clockSync.update():
+            pass
+        clockSync.match()
+        if clockSync.offset is None:
+            print "MW:", [e[1] for e in clockSync.mwEvents]
+            print "AU:", [e[1] for e in clockSync.auEvents]
+    
+    fig.canvas.mpl_connect("motion_notify_event", update)
+    
     plt.show()
