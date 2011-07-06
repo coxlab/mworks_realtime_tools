@@ -154,7 +154,7 @@ class ClockSync(object):
             # if offset != self.offset:
                 # print self.mwEvents[lastMatch[0]][0], self.mwEvents[lastMatch[0]][1], self.auEvents[lastMatch[1]][0], self.auEvents[lastMatch[1]][1]
             self.offset = self.mwEvents[lastMatch[0]][0] -  self.auEvents[lastMatch[1]][0]
-            logging.debug("ClockSync.offset = %.4f" % self.offset)
+            #logging.debug("ClockSync.offset = %.4f" % self.offset)
             # self.offset = self.mwTimes[lastMatch[0]] - self.auTimes[lastMatch[1]]
             self.err = err
             self.matchLength = ml
