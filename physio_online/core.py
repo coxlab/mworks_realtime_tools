@@ -3,6 +3,8 @@
 This is the core physio_online object
 """
 
+import logging, sys
+
 import zmq
 
 # import mworks conduit
@@ -36,8 +38,8 @@ class Core(object):
         # pathFunc = lambda i : "tcp://127.0.0.1:%i" % (i+8000) 
         pathFunc = lambda i : config.get('audio', 'socketTemplate') % i
         channels = range(config.getint('audio', 'socketStart'), config.getint('audio', 'socketEnd'))
-        spikeListener = SpikeListener(pathFunc, channels, zmqContext=zmqContext)
-        spikeListener.register_callback(self.process_spike)
+        self.spikeListener = SpikeListener(pathFunc, channels, zmqContext=zmqContext)
+        self.spikeListener.register_callback(self.process_spike)
         
     
     def process_mw_event(self, event):
@@ -54,7 +56,7 @@ class Core(object):
 
         if not (self.clockSync.offset is None):
             # spikeMWTime = clockSync.clockSync.au_to_mw(wb.time_stamp/44100.)
-            self.stimSpikeSyncer.process_spike(wb.channel_id, self.clockSync.au_to_mw(wb.time_stamp/44100.))
+            self.stimSpikeSyncer.process_spike(wb.channel_id, self.clockSync.au_to_mw(wb.time_stamp/float(config.getint('audio','sampRate'))))
         else:
             logging.warning("Clock not synced!! dropping spike on %i" % wb.channel_id)
     
@@ -62,6 +64,7 @@ class Core(object):
         """
         Updates the various components of the physio_online core, should be called in the main loop
         """
+        logging.debug("Core updating")
         # global clockSync, sl, stimSpikeSyncer
         while self.spikeListener.update():
             pass
@@ -69,8 +72,8 @@ class Core(object):
             pass
         self.clockSync.match()
         if self.clockSync.offset is None:
-            logging.debug("MW: %s" % str([e[1] for e in clockSync.mwEvents]))
-            logging.debug("AU: %s" str([e[1] for e in clockSync.auEvents]))
+            logging.debug("MW: %s" % str([e[1] for e in self.clockSync.mwEvents]))
+            logging.debug("AU: %s" % str([e[1] for e in self.clockSync.auEvents]))
     
     def clear_spikes(self):
         """

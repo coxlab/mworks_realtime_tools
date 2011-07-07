@@ -12,7 +12,7 @@ conv: 0.000001
 [pixel clock]
 socketTemplate: ipc:///tmp/pixel_clock/%%i
 socketStart: 0
-socketStop: 4
+socketEnd: 4
 maxError: 2
 
 [audio]
