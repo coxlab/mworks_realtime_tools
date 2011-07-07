@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use('Qt4Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.widgets as widgets
 
 # import mworks conduit
 # sys.path.append("/Library/Application Support/MWorks/Scripting/Python")
@@ -183,9 +184,48 @@ if __name__ == '__main__':
         # else:
         #     logging.warning("Unknown stimulus: %s" % str(stim))
     
+    # global cDict
+    # cDict = {}
+    # for c in xrange(32):
+    #     cDict[str(c)] = c
+    # def cc_callback(label):
+    #     global cDict
+    #     c = cDict[label]
+    #     set_channel(c)
+    # cc = widgets.RadioButtons(fig.add_subplot(gs[0]),cDict.keys())
+    # cc.on_clicked(cc_callback)
     cc = physio_online.psth.VerticalSelect(fig.add_subplot(gs[0]),32,title='C',updateFunc=set_channel) # channel control
+    
+    # global sDict
+    # sDict = {}
+    # for s in xrange(12):
+    #     sDict[str(c)] = c
+    # def sc_callback(label):
+    #     global sDict
+    #     s = cDict[label]
+    #     set_name(s)
+    # sc = widgets.RadioButtons(fig.add_subplot(gs[2]),sDict.keys())
+    # sc.on_clicked(sc_callback)
     sc = physio_online.psth.VerticalSelect(fig.add_subplot(gs[2]),12,title='I',updateFunc=set_name) # stimulus control
+    
+    # global tDict
+    # tDict = {'0,1': 0, '-1,0': 1, '0,0': 2, '1,0': 3, '0,-1': 4}
+    # def tc_callback(label):
+    #     global tDict
+    #     t = tDict[label]
+    #     set_trans(t)
+    # tc = widgets.RadioButtons(fig.add_subplot(gs[3]),tDict.keys())
+    # tc.on_clicked(tc_callback)
     tc = physio_online.psth.VerticalSelect(fig.add_subplot(gs[3]),5,title='T',updateFunc=set_trans) # translation control
+    
+    # global zDict
+    # zDict = {'0.75': 0, '1.0': 1, '1.25': 2}
+    # def zc_callback(label):
+    #     global zDict
+    #     z = zDict[label]
+    #     set_size(z)
+    # zc = widgets.RadioButtons(fig.add_subplot(gs[4]),zDict.keys())
+    # zc.on_clicked(zc_callback)
     zc = physio_online.psth.VerticalSelect(fig.add_subplot(gs[4]),3,title='S',updateFunc=set_size) # size control
     
     cc.connect()
