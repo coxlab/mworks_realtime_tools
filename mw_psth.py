@@ -204,7 +204,11 @@ if __name__ == '__main__':
     #             print "MW:", [e[1] for e in clockSync.mwEvents]
     #             print "AU:", [e[1] for e in clockSync.auEvents]
     
+    def update(event):
+        global core
+        core.update()
+    
     fig.canvas.mpl_connect("idle_event", core.update)
-    # fig.canvas.mpl_connect("motion_notify_event", core.update)
+    fig.canvas.mpl_connect("motion_notify_event", update)
     
     plt.show()
