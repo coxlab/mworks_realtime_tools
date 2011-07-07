@@ -75,7 +75,7 @@ mpl.addWidget(canvas)
 
 timer = QTimer(canvas)
 timer.timeout.connect(core.update)
-timer.start(100)
+timer.start(1000)
 
 win.show()
 sys.exit(app.exec_())
