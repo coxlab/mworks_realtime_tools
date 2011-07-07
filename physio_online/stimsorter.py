@@ -121,6 +121,16 @@ class StimSpikeSyncer(StimTimer):
             return self.channels[channel][stimI]
         else:
             return []
+    
+    def clear_spikes(self):
+        for c in self.channels.keys():
+            for sI in self.channels[c].keys():
+                self.channels[c][sI] = []
+    
+    def clear_stimuli(self):
+        self.stimList = []
+        for c in self.channels.keys():
+            self.channels[c] = {}
 
 if __name__ == '__main__':
     import mworks.data as mw
