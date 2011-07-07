@@ -153,8 +153,6 @@ if __name__ == '__main__':
         
         global channel, stim
         stimI = core.stimSpikeSyncer.find_stim(stim)
-        
-        stimI = core.stimSpikeSyncer.find_stim(stim)
         if stimI != -1:
             spikes = core.stimSpikeSyncer.get_stim_spikes(channel, stimI)
             if len(spikes) > 0:
