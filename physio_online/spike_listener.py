@@ -16,18 +16,24 @@ class SpikeListener:
             self.socket.connect(pathFunc(i))
         self.socket.setsockopt(zmq.SUBSCRIBE,"")
         self._wb = SpikeWaveBuffer()
+        
+        self.callbacks = []
     
     def update(self):
         try:
             packet = self.socket.recv(zmq.NOBLOCK)
             self._wb.ParseFromString(packet)
             self.process_spike(self._wb)
+            [c(self._wb) for c in self.callbacks]
             return 1
         except zmq.ZMQError:
             return 0
     
     def process_spike(self, wb):
         pass
+    
+    def register_callback(self, func):
+        self.callbacks.append(func)
 
 
 if __name__ == '__main__':
@@ -38,7 +44,8 @@ if __name__ == '__main__':
     sl = SpikeListener(pathFunc, xrange(32))
     def process_spike(wb): # overload process_spike
         print wb.time_stamp, wb.channel_id
-    sl.process_spike = process_spike
+    sl.register_callback(process_spike)
+    #sl.process_spike = process_spike
     
     while True:
         sl.update()
