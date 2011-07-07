@@ -131,7 +131,7 @@ if __name__ == '__main__':
         get_spikes()
     
     global stim, stimI
-    stimI = -1
+    stimI = 0
     # TODO setup default
     stimDict = { 'name': '0',
                     'pos_x': -25, 'pos_y': 0,
@@ -139,28 +139,67 @@ if __name__ == '__main__':
                     'rotation': 0 }
     stim = Stim(stimDict)
     
+    global bar
+    
+    def get_spikes():
+        global bar
+        bar.update()
+        global channel, stim, stimSpikeSyncer
+        stimI = stimSpikeSyncer.find_stim(stim)
+        if stimI != -1:
+            spikes = stimSpikeSyncer.get_stim_spikes(channel, stimI)
+            if len(spikes) > 0:
+                # global livepsth
+                # livepsth.draw_spikes(spikes)
+                update_figure(spikes)
+            else:
+                logging.debug("No spikes on channel %i" % channel)
+        else:
+            logging.warning("Unknown stimulus: %s" % str(stim))
+    
     def get_stim_i():
         global stimI
-        return stimI
+        return int(stimI)
     
     def set_stim_i(i):
         global stimI, stimSpikeSyncer
-        if (i < 0) or (stimI >= len(stimSpikeSyncer.stimList)):
+        # print i
+        if (i < 0) or (i >= len(stimSpikeSyncer.stimList)):
             return
+        # logging.debug("NStims: %i" % len(stimSpikeSyncer.stimList))
         stimI = i
         global stim
         stim = stimSpikeSyncer.stimList[i]
+        logging.info("Current Stimulus: %s" % str(stim))
         get_spikes()
     
+    def get_stim_name():
+        global stim
+        try:
+            return int(stim.name)
+        except:
+            return 65535
     def get_stim_x():
         global stim
-        return stim.pos_x
+        return int(stim.pos_x)
     def get_stim_y():
         global stim
-        return stim.pos_y
+        return int(stim.pos_y)
     def get_stim_size():
         global stim
-        return stim.size_x
+        return int(stim.size_x)
+    
+    def set_stim_name(name):
+        global stim, stimI, stimSpikeSyncer
+        newStim = copy.deepcopy(stim)
+        newStim.name = str(name)
+        if name == 65535:
+            newStim.name = 'BlueSquare'
+        i = stimSpikeSyncer.find_stim(newStim)
+        if i != -1:
+            stimI = i
+            stim = stimSpikeSyncer.stimList[i]
+            get_spikes()
     
     def set_stim_x(x):
         global stim, stimI, stimSpikeSyncer
@@ -194,7 +233,7 @@ if __name__ == '__main__':
             get_spikes()
     
     atb.init()
-    global bar
+    # global bar
     bar = atb.Bar(name="Controls", label="Controls",
                   help="Scene controls", position=(10, 10), size=(200, 320))
     # channel = ct.c_int(1)
@@ -202,19 +241,21 @@ if __name__ == '__main__':
     # stim_x = ct.c_float(1)
     # stim_y = ct.c_float(1)
     # stim_size = ct.c_int(1)
-    bar.add_var("Channel", getter=get_channel, setter=set_channel)
-    bar.add_var("Stim/Id", getter=get_stim_i, setter=set_stim_i)
-    bar.add_var("Stim/X", getter=get_stim_x, setter=set_stim_x)
-    bar.add_var("Stim/Y", getter=get_stim_y, setter=set_stim_y)
-    bar.add_var("Stim/Size", getter=get_stim_size, setter=set_stim_size)
+    bar.add_var("Channel", getter=get_channel, setter=set_channel, vtype=ct.c_int)
+    bar.add_var("Stim/I", getter=get_stim_i, setter=set_stim_i, vtype=ct.c_int)
+    bar.add_var("Stim/Name", getter=get_stim_name, setter=set_stim_name, vtype=ct.c_int)
+    bar.add_var("Stim/X", getter=get_stim_x, setter=set_stim_x, vtype=ct.c_int)
+    bar.add_var("Stim/Y", getter=get_stim_y, setter=set_stim_y, vtype=ct.c_int)
+    bar.add_var("Stim/Size", getter=get_stim_size, setter=set_stim_size, vtype=ct.c_int)
     
     def update_figure(spikes):
-        # print "Updating figure"
-        global window, frame, ax, fig
+        logging.debug("Updating figure")
+        global window, frame, ax, fig, bar, stim
         # draw in matplotlib
         ax.cla()
         ax.hist(spikes,bins=np.linspace(-0.1,0.5,25),color='k')
         ax.vlines(0,0,ax.get_ylim()[1],color='b')
+        ax.set_title("%s" % str(stim))
 
         fig.canvas.draw()
         buffer = fig.canvas.buffer_rgba(0,0)
@@ -229,7 +270,7 @@ if __name__ == '__main__':
         # Create main frame 
         frame = glumpy.Image(Ft,interpolation='nearest')
         frame.update()
-
+        bar.update()
         glut.glutPostRedisplay()
     
     update_figure([0])
@@ -261,9 +302,9 @@ if __name__ == '__main__':
     #     channel = c
     #     get_spikes()
     
-    @window.event("on_key_press")
-    def on_key_press(key, modifiers):
-        print "Glumpy:", key, modifiers
+    #@window.event("on_key_press")
+    #def on_key_press(key, modifiers):
+    #    print "Glumpy:", key, modifiers
     
     global t
     t = 0
@@ -282,22 +323,9 @@ if __name__ == '__main__':
             if clockSync.offset is None:
                 print "MW:", [e[1] for e in clockSync.mwEvents]
                 print "AU:", [e[1] for e in clockSync.auEvents]
-        
-            global channel, stim
-            stimI = stimSpikeSyncer.find_stim(stim)
-            if stimI != -1:
-                spikes = stimSpikeSyncer.get_stim_spikes(channel, stimI)
-                if len(spikes) > 0:
-                    # global livepsth
-                    # livepsth.draw_spikes(spikes)
-                    update_figure(spikes)
-                else:
-                    logging.debug("No spikes on channel %i" % channel)
-            else:
-                logging.warning("Unknown stimulus: %s" % str(stim))
             
             t -= 0.03
-
+    
     @window.event("on_draw")
     def on_draw():
         global frame
