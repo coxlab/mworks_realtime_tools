@@ -33,6 +33,10 @@ class SpikeListener:
         pass
     
     def register_callback(self, func):
+        """
+        Register a function that will get called when a spike is received.
+        the function should accept a single argument of type SpikeWaveBuffer
+        """
         self.callbacks.append(func)
 
 
