@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>805</width>
-    <height>408</height>
+    <width>941</width>
+    <height>407</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -25,12 +25,12 @@
     </property>
     <layout class="QVBoxLayout" name="mplPlot"/>
    </widget>
-   <widget class="QTableView" name="stimuliTable">
+   <widget class="QTableWidget" name="stimuliTable">
     <property name="geometry">
      <rect>
       <x>430</x>
       <y>10</y>
-      <width>361</width>
+      <width>501</width>
       <height>351</height>
      </rect>
     </property>
@@ -41,7 +41,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>805</width>
+     <width>941</width>
      <height>22</height>
     </rect>
    </property>
