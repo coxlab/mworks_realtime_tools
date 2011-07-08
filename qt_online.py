@@ -113,14 +113,22 @@ class QtPhysio(physio_online.core.Core):
         # little bit of a hack
         self.stimSpikeSyncer = QtStimSpikeSyncer()
         self.channel = 0
+    
     def update(self):
         # call super
         physio_online.core.Core.update(self)
+    
     def draw_spikes(self, spikes):
         self.axes.cla()
-        self.axes.hist(spikes,bins=np.linspace(-0.1,0.5,25),alpha=0.5,color='k')
+        if spikes:
+            self.axes.hist(spikes,bins=np.linspace(-0.1,0.5,25),alpha=0.5,color='k')
         self.axes.vlines(0,0,self.axes.get_ylim()[1],color='b')
         self.axes.figure.canvas.draw()
+    
+    def set_channel(self, channel):
+        self.channel = channel
+        self.display_selection()
+    
     def display_selection(self):
         selectedStimI = self.stimSpikeSyncer.get_selected()
         spikes = []
@@ -130,8 +138,7 @@ class QtPhysio(physio_online.core.Core):
             except:
                 logging.debug('No spikes')
                 return
-        if spikes:
-            self.draw_spikes(spikes)
+        self.draw_spikes(spikes)
 
 # Create a Qt application 
 app = QApplication(sys.argv)
@@ -158,6 +165,9 @@ core = QtPhysio(config, fig, ax, win)
 stimuliTable = win.findChild(QTableWidget, 'stimuliTable')
 core.stimSpikeSyncer.set_table(stimuliTable)
 stimuliTable.selectionModel().selectionChanged.connect(core.display_selection)
+
+channelSpin = win.findChild(QSpinBox, 'channelSpin')
+channelSpin.valueChanged[int].connect(core.set_channel)
 
 # fill with fake stimuli and spikes
 sd = {'name':'0','pos_x':0,'pos_y':0,'size_x':1,'size_y':1,'rotation':0}

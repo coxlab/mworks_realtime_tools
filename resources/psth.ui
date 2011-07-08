@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>941</width>
-    <height>407</height>
+    <width>940</width>
+    <height>446</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -35,13 +35,26 @@
      </rect>
     </property>
    </widget>
+   <widget class="QSpinBox" name="channelSpin">
+    <property name="geometry">
+     <rect>
+      <x>370</x>
+      <y>370</y>
+      <width>57</width>
+      <height>25</height>
+     </rect>
+    </property>
+    <property name="maximum">
+     <number>31</number>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>941</width>
+     <width>940</width>
      <height>22</height>
     </rect>
    </property>
