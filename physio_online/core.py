@@ -41,6 +41,8 @@ class Core(object):
         self.spikeListener = SpikeListener(pathFunc, channels, zmqContext=zmqContext)
         self.spikeListener.register_callback(self.process_spike)
         
+        self.sampRate = float(config.getint('audio','sampRate'))
+        
     
     def process_mw_event(self, event):
         # global stimSpikeSyncer, clockSync
@@ -56,7 +58,7 @@ class Core(object):
 
         if not (self.clockSync.offset is None):
             # spikeMWTime = clockSync.clockSync.au_to_mw(wb.time_stamp/44100.)
-            self.stimSpikeSyncer.process_spike(wb.channel_id, self.clockSync.au_to_mw(wb.time_stamp/float(config.getint('audio','sampRate'))))
+            self.stimSpikeSyncer.process_spike(wb.channel_id, self.clockSync.au_to_mw(wb.time_stamp/self.sampRate))
         else:
             logging.warning("Clock not synced!! dropping spike on %i" % wb.channel_id)
     

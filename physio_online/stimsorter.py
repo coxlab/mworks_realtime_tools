@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import logging
+
 class Stim:
     def __init__(self, stimdict):
         self.stimdict = stimdict
@@ -75,7 +77,12 @@ class StimTimer(StimSorter):
                     i = self.add_stim(stim)
                     self.times[i] = [event.time * conv,]
                 else:
-                    self.times[i].append(event.time * conv)
+                    if i in self.times.keys():
+                        self.times[i].append(event.time * conv)
+                    else:
+                        #TODO not sure how I got here
+                        logging.debug("Unknown stimulus")
+                        self.times[i] = [event.time * conv,]
     
     def lookup_stim_for_time(self, time, pre=0.1, post=0.5):
         """
@@ -88,12 +95,16 @@ class StimTimer(StimSorter):
         """
         for i in xrange(len(self.stimList)):
             stim = self.stimList[i]
-            stimTimes = self.times[i][::-1]
-            for stimTime in stimTimes:
-                if time < (stimTime + post) and time > (stimTime - pre):
-                    return stim, i, stimTime - time
-                if time >= (stimTime + post):
-                    break
+            # print self.times.keys()
+            if i in self.times.keys():
+                stimTimes = self.times[i][::-1]
+                for stimTime in stimTimes:
+                    if time < (stimTime + post) and time > (stimTime - pre):
+                        return stim, i, time - stimTime
+                    if time >= (stimTime + post):
+                        break
+                else:
+                    logging.debug("Spike encountered for unknown stimulus")
         return None, None, None
 
 class StimSpikeSyncer(StimTimer):

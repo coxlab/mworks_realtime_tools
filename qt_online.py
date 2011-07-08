@@ -18,7 +18,7 @@
 """
 
 import logging, sys
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.ERROR)
 
 import matplotlib
 matplotlib.use('Qt4Agg')
@@ -170,15 +170,16 @@ channelSpin = win.findChild(QSpinBox, 'channelSpin')
 channelSpin.valueChanged[int].connect(core.set_channel)
 
 # fill with fake stimuli and spikes
-sd = {'name':'0','pos_x':0,'pos_y':0,'size_x':1,'size_y':1,'rotation':0}
-core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
-sd['name'] = '1'
-core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
-sd['name'] = '3'
-core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
-core.stimSpikeSyncer.channels[0][0] = [0.01,-0.01]
-core.stimSpikeSyncer.channels[0][1] = [0.02,0.025]
-core.stimSpikeSyncer.channels[0][2] = [0.03,0.035]
+if False:
+    sd = {'name':'0','pos_x':0,'pos_y':0,'size_x':1,'size_y':1,'rotation':0}
+    core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
+    sd['name'] = '1'
+    core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
+    sd['name'] = '3'
+    core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
+    core.stimSpikeSyncer.channels[0][0] = [0.01,-0.01]
+    core.stimSpikeSyncer.channels[0][1] = [0.02,0.025]
+    core.stimSpikeSyncer.channels[0][2] = [0.03,0.035]
 
 # self.view.selectionModel().selectionChanged.connect(self.updateActions)
 # stimuliTable.setModel(core.stimSpikeSyncer)
