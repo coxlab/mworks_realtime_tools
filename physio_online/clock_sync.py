@@ -46,7 +46,7 @@ class ClockSync(object):
         # calculate most recent offset using slope
         s, i, _, _, _ = linregress(times,meanOffsets)
         if (s > 0) and (s < self.slopeThreshold):
-            self.offset = times[-1] * s + i
+            self.offset = (times[-1] * s + i)/1000000. # convert to seconds
     
     def mw_to_au(self, mwTime):
         return mwTime - self.offset

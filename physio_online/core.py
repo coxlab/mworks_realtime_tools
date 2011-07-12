@@ -23,7 +23,8 @@ class Core(object):
         # make clock synchronizer
         pathFunc = lambda i: config.get('pixel clock', 'socketTemplate') % i
         channels = range(config.getint('pixel clock', 'socketStart'), config.getint('pixel clock', 'socketEnd'))
-        self.clockSync = ClockSync(pathFunc, channels, zmqContext=zmqContext, maxErr=config.getint('pixel clock', 'maxError'))
+        #self.clockSync = ClockSync(pathFunc, channels, zmqContext=zmqContext, maxErr=config.getint('pixel clock', 'maxError'))
+        self.clockSync = ClockSync()
         
         # make stim spike syncer
         self.stimSpikeSyncer = StimSpikeSyncer()
@@ -32,7 +33,9 @@ class Core(object):
         self.mw_conduit = IPCClientConduit(config.get('mworks','conduitname'))
         self.mw_conduit.initialize()
         self.mw_conduit.register_local_event_code(0,'#stimDisplayUpdate')
-        self.mw_conduit.register_callback_for_name('#stimDisplayUpdate', self.process_mw_event)
+        self.mw_conduit.register_local_event_code(1,'#pixelClockOffset')
+        self.mw_conduit.register_callback_for_name('#stimDisplayUpdate', self.process_mw_display_event)
+        self.mw_conduit.register_callback_for_name('#pixelClockOffset', self.process_mw_pixel_clock_event)
         
         # make spike listener
         # pathFunc = lambda i : "tcp://127.0.0.1:%i" % (i+8000) 
@@ -44,13 +47,19 @@ class Core(object):
         self.sampRate = float(config.getint('audio','sampRate'))
         
     
-    def process_mw_event(self, event):
+    def process_mw_display_event(self, event):
         # global stimSpikeSyncer, clockSync
         if event is None:
             return
         else:
             event.value = event.data
         self.stimSpikeSyncer.process_mw_event(event)
+    
+    def process_mw_pixel_clock_event(self, event):
+        if event is None:
+            return
+        else:
+            event.value = event.data
         self.clockSync.process_mw_event(event)
     
     def process_spike(self, wb):
@@ -70,12 +79,12 @@ class Core(object):
         # global clockSync, sl, stimSpikeSyncer
         while self.spikeListener.update():
             pass
-        while self.clockSync.update():
-            pass
-        self.clockSync.match()
-        if self.clockSync.offset is None:
-            logging.debug("MW: %s" % str([e[1] for e in self.clockSync.mwEvents]))
-            logging.debug("AU: %s" % str([e[1] for e in self.clockSync.auEvents]))
+        # while self.clockSync.update():
+        #     pass
+        # self.clockSync.match()
+        # if self.clockSync.offset is None:
+        #     logging.debug("MW: %s" % str([e[1] for e in self.clockSync.mwEvents]))
+        #     logging.debug("AU: %s" % str([e[1] for e in self.clockSync.auEvents]))
     
     def clear_spikes(self):
         """
