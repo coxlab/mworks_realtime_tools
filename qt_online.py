@@ -71,13 +71,14 @@ class QtStimSpikeSyncer(physio_online.stimsorter.StimSpikeSyncer):
     
     def add_stim(self, stim):
         i = physio_online.stimsorter.StimSpikeSyncer.add_stim(self, stim)
-        self.table.insertRow(0)
-        self.table.setItem(0, 0, QTableWidgetItem(stim.name))
-        self.table.setItem(0, 1, QTableWidgetItem(str(stim.pos_x)))
-        self.table.setItem(0, 2, QTableWidgetItem(str(stim.pos_y)))
-        self.table.setItem(0, 3, QTableWidgetItem(str(stim.size_x)))
-        self.table.setItem(0, 4, QTableWidgetItem(str(stim.size_y)))
-        self.table.setItem(0, 5, QTableWidgetItem(str(stim.rotation)))
+        rowI = self.table.rowCount()
+        self.table.insertRow(rowI)
+        self.table.setItem(rowI, 0, QTableWidgetItem(stim.name))
+        self.table.setItem(rowI, 1, QTableWidgetItem(str(stim.pos_x)))
+        self.table.setItem(rowI, 2, QTableWidgetItem(str(stim.pos_y)))
+        self.table.setItem(rowI, 3, QTableWidgetItem(str(stim.size_x)))
+        self.table.setItem(rowI, 4, QTableWidgetItem(str(stim.size_y)))
+        self.table.setItem(rowI, 5, QTableWidgetItem(str(stim.rotation)))
     
     def clear_stimuli(self):
         physio_online.stimsorter.StimSpikeSyncer.clear_stimuli(self)
@@ -170,12 +171,14 @@ channelSpin = win.findChild(QSpinBox, 'channelSpin')
 channelSpin.valueChanged[int].connect(core.set_channel)
 
 # fill with fake stimuli and spikes
-if False:
+if True:
     sd = {'name':'0','pos_x':0,'pos_y':0,'size_x':1,'size_y':1,'rotation':0}
     core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
     sd['name'] = '1'
+    sd['pos_x'] = 1
     core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
     sd['name'] = '3'
+    sd['size_x'] = 0.5
     core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
     core.stimSpikeSyncer.channels[0][0] = [0.01,-0.01]
     core.stimSpikeSyncer.channels[0][1] = [0.02,0.025]
@@ -184,6 +187,12 @@ if False:
 # self.view.selectionModel().selectionChanged.connect(self.updateActions)
 # stimuliTable.setModel(core.stimSpikeSyncer)
 # stimuliTable.clicked[QModelIndex].connect(core.stimSpikeSyncer.clicked)
+
+clearSpikesButton = win.findChild(QPushButton, 'clearSpikesButton')
+clearSpikesButton.clicked.connect(core.clear_spikes)
+
+clearStimuliButton = win.findChild(QPushButton, 'clearStimuliButton')
+clearStimuliButton.clicked.connect(core.clear_stimuli)
 
 # make and start update timer
 timer = QTimer(canvas)
