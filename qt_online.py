@@ -171,7 +171,7 @@ channelSpin = win.findChild(QSpinBox, 'channelSpin')
 channelSpin.valueChanged[int].connect(core.set_channel)
 
 # fill with fake stimuli and spikes
-if True:
+if False:
     sd = {'name':'0','pos_x':0,'pos_y':0,'size_x':1,'size_y':1,'rotation':0}
     core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
     sd['name'] = '1'
@@ -188,11 +188,11 @@ if True:
 # stimuliTable.setModel(core.stimSpikeSyncer)
 # stimuliTable.clicked[QModelIndex].connect(core.stimSpikeSyncer.clicked)
 
-clearSpikesButton = win.findChild(QPushButton, 'clearSpikesButton')
-clearSpikesButton.clicked.connect(core.clear_spikes)
-
-clearStimuliButton = win.findChild(QPushButton, 'clearStimuliButton')
-clearStimuliButton.clicked.connect(core.clear_stimuli)
+# clearSpikesButton = win.findChild(QPushButton, 'clearSpikesButton')
+# clearSpikesButton.clicked.connect(core.clear_spikes)
+# 
+# clearStimuliButton = win.findChild(QPushButton, 'clearStimuliButton')
+# clearStimuliButton.clicked.connect(core.clear_stimuli)
 
 # make and start update timer
 timer = QTimer(canvas)

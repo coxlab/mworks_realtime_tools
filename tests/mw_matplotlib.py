@@ -32,7 +32,7 @@ class MWData:
             self.xs[targetEvent] = []
             self.ys[targetEvent] = []
     def add_event(self, name, event):
-        print "Adding event to data: %s" % name
+        #print "Adding event to data: %s" % name
         self.xs[name].append(event.time)
         self.ys[name].append(event.data)
         while len(self.xs[name]) > self.maxN:
@@ -64,11 +64,12 @@ lines = {}
 def receive_event(event):
     global cond, data, codeToName
     name = codeToName[event.code]
-    print "Receive event attempted to acquire lock"
+    #print "Receive event attempted to acquire lock"
     cond.acquire()
-    print "Received event: %s" % name
+    #print "Received event: %s" % name
     data.add_event(name, event)
-    print "Notifying"
+    print event.time, event.data
+    #print "Notifying"
     cond.notifyAll()
     cond.release()
 
@@ -85,23 +86,23 @@ def update_plot():
         legend()
     
     cond.acquire()
-    print "Updating plot"
+    #print "Updating plot"
     
     while data.is_empty():
-        print "Waiting for data"
+        #print "Waiting for data"
         cond.wait()
     
     # update data
     
-    print "Setting data"
+    #print "Setting data"
     xlims = None
     ylims = None
     for e in targetEvents:
         line = lines[e]
         x = data.get_x(e)
         y = data.get_y(e)
-        sys.stdout.write("%s %i %i\n" % (e, len(x), len(y)))
-        sys.stdout.flush()
+        #sys.stdout.write("%s %i %i\n" % (e, len(x), len(y)))
+        #sys.stdout.flush()
         line.set_xdata(x)
         line.set_ydata(y)
         if not (len(x) + len(y)): # check if empty
@@ -127,7 +128,7 @@ def update_plot():
     cond.release()
     
     # draw
-    print "Drawing"
+    #print "Drawing"
     draw()
 
 global eventIndex
@@ -148,13 +149,13 @@ class EventProducer(Thread):
         self.eventIndex = 0
     def run(self):
         for i in xrange(self.nEvents):
-            print "Produced Event"
+            #print "Produced Event"
             t = self.eventIndex/10.
             self.eventIndex += 1
             event = FakeEvent(t,t,0)
-            print "Received Event"
+            #print "Received Event"
             receive_event('fake',event)
-            print "Sleeping..."
+            #print "Sleeping..."
             time.sleep(self.iei)
 
 if __name__=="__main__":
@@ -173,21 +174,21 @@ if __name__=="__main__":
             client.register_local_event_code(i,targetEvents[i])
             client.register_callback_for_name(eventName, receive_event)
             codeToName[i] = targetEvents[i]
-        print codeToName
+        #print codeToName
         sys.stdout.write('waiting for events\n')
     
     while 1:
         update_plot()
         if fakeProducer:
            if not fp.is_alive():
-               print "Fake event producer is done producing events"
+               #print "Fake event producer is done producing events"
                break 
         time.sleep(1.)
     
-    print "Joining threads"
+    #print "Joining threads"
     if fakeProducer:
         fp.join()
     else:
         client.finalize()
-    print "DONE!"
+    #print "DONE!"
     show()

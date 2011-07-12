@@ -31,6 +31,9 @@ class ClockSync(object):
         self.cond.release()
     
     def recompute_offset(self):
+        if len(self.offsets) < 10:
+            print self.offsets
+            return
         offsetsArray = np.array(self.offsets)
         offsets = offsetsArray[:,1]
         times = offsetsArray[:,0]
@@ -40,13 +43,16 @@ class ClockSync(object):
         goodIndexes = np.where(abs(offsets-meanOffset) < self.outlierThreshold)
         
         # remove outliers
-        meanOffsets = meanOffsets[goodIndexes]
+        offsets = offsets[goodIndexes]
         times = times[goodIndexes]
-        
+        if len(offsets) < 10:
+            print "Good offsets:", offsets
+            return
         # calculate most recent offset using slope
-        s, i, _, _, _ = linregress(times,meanOffsets)
+        s, i, _, _, _ = linregress(times,offsets)
         if (s > 0) and (s < self.slopeThreshold):
             self.offset = (times[-1] * s + i)/1000000. # convert to seconds
+            print self.offset
     
     def mw_to_au(self, mwTime):
         return mwTime - self.offset
