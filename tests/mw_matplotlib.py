@@ -13,7 +13,8 @@ from threading import *
 from pylab import *
 
 fakeProducer = False
-targetEvents = ['LickInput','LickInput3','LickInput3']
+# targetEvents = ['LickInput','LickInput3','LickInput3']
+targetEvents = ['#pixelClockOffset']
 
 global codeToName
 codeToName = {}

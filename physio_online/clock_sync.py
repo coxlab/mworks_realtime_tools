@@ -236,7 +236,8 @@ def match_codes(mw, au, minMatch = 10, maxErr = 1):
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     
-    pathFunc = lambda i : "ipc:///tmp/pixel_clock/%i" % i
+    #pathFunc = lambda i : "ipc:///tmp/pixel_clock/%i" % i
+    pathFunc = lambda i : "tcp://localhost:%i" % (11000 + i)
     cs = ClockSync(pathFunc, range(4))
     
     conduitName = 'server_event_conduit'

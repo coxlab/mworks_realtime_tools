@@ -23,7 +23,8 @@ from mworks.conduit import IPCClientConduit as Conduit
 conduitName = 'server_event_conduit'
 
 # eventNames = ['#stimDisplayUpdate','#annouceTrial','x','non_existant_variable']
-eventNames = ['#stimDisplayUpdate','#annouceTrial','x']
+#eventNames = ['#stimDisplayUpdate','#annouceTrial','x']
+eventNames = ['#pixelClockOffset']
 
 if __name__ == '__main__':
     # setup opengl
