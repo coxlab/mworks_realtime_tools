@@ -44,7 +44,32 @@ class QtStimSpikeSyncer(physio_online.stimsorter.StimSpikeSyncer):
     
     def add_stim(self, stim):
         i = physio_online.stimsorter.StimSpikeSyncer.add_stim(self, stim)
-        rowI = self.table.rowCount()
+        rowI = None
+        for r in xrange(self.table.rowCount()):
+            try:
+                intName = int(self.table.item(r, 0).text())
+            except:
+                intName = -ord(str(self.table.item(r,0).text()))
+            if intName > stim.intName:
+                rowI = r
+                break
+            if float(self.table.item(r,1).text()) > stim.pos_x):
+                rowI = r
+                break
+            if float(self.table.item(r,2).text()) > stim.pos_y):
+                rowI = r
+                break
+            if float(self.table.item(r,3).text()) > stim.size_x):
+                rowI = r
+                break
+            if float(self.table.item(r,4).text()) > stim.size_y):
+                rowI = r
+                break
+            if float(self.table.item(r,5).text()) > stim.rotation):
+                rowI = r
+                break
+        if rowI is None:
+            rowI = self.table.rowCount()
         self.table.insertRow(rowI)
         self.table.setItem(rowI, 0, QTableWidgetItem(stim.name))
         self.table.setItem(rowI, 1, QTableWidgetItem(str(stim.pos_x)))
