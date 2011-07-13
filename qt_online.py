@@ -49,25 +49,37 @@ class QtStimSpikeSyncer(physio_online.stimsorter.StimSpikeSyncer):
             try:
                 intName = int(self.table.item(r, 0).text())
             except:
-                intName = -ord(str(self.table.item(r,0).text()))
+                intName = -ord(str(self.table.item(r,0).text())[0])
             if intName > stim.intName:
                 rowI = r
                 break
-            if float(self.table.item(r,1).text()) > stim.pos_x):
+            elif intName < stim.intName:
+                continue
+            if float(self.table.item(r,1).text()) > stim.pos_x:
                 rowI = r
                 break
-            if float(self.table.item(r,2).text()) > stim.pos_y):
+            elif float(self.table.item(r,1).text()) < stim.pos_x:
+                continue
+            if float(self.table.item(r,2).text()) > stim.pos_y:
                 rowI = r
                 break
-            if float(self.table.item(r,3).text()) > stim.size_x):
+            elif float(self.table.item(r,2).text()) < stim.pos_y:
+                continue
+            if float(self.table.item(r,3).text()) > stim.size_x:
                 rowI = r
                 break
-            if float(self.table.item(r,4).text()) > stim.size_y):
+            elif float(self.table.item(r,3).text()) < stim.size_x:
+                continue
+            if float(self.table.item(r,4).text()) > stim.size_y:
                 rowI = r
                 break
-            if float(self.table.item(r,5).text()) > stim.rotation):
+            elif float(self.table.item(r,4).text()) < stim.size_y:
+                continue
+            if float(self.table.item(r,5).text()) > stim.rotation:
                 rowI = r
                 break
+            elif float(self.table.item(r,5).text()) < stim.rotation:
+                continue
         if rowI is None:
             rowI = self.table.rowCount()
         self.table.insertRow(rowI)
