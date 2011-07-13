@@ -34,33 +34,6 @@ from PySide.QtUiTools import *
 
 import physio_online
 
-# class QtStimSpikeSyncer(physio_online.stimsorter.StimSpikeSyncer, QStandardItemModel):
-#     def __init__(self, parent=None):
-#         physio_online.stimsorter.StimSpikeSyncer.__init__(self)
-#         QStandardItemModel.__init__(self, 0, 5, parent) # name, posx, posy, sizex, sizy
-#         self.setHeaderData(0, Qt.Horizontal, "Name")
-#         self.setHeaderData(1, Qt.Horizontal, "Pos X")
-#         self.setHeaderData(2, Qt.Horizontal, "Pos Y")
-#         self.setHeaderData(3, Qt.Horizontal, "Size X")
-#         self.setHeaderData(4, Qt.Horizontal, "Size Y")
-#     def add_stim(self, stim):
-#         i = physio_online.stimsorter.StimSpikeSyncer.add_stim(self, stim)
-#         # add stimulus to model
-#         self.insertRow(0)
-#         self.setData(self.index(0, 0), stim['name'])
-#         self.setData(self.index(0, 1), stim['pos_x'])
-#         self.setData(self.index(0, 2), stim['pos_y'])
-#         self.setData(self.index(0, 3), stim['size_x'])
-#         self.setData(self.index(0, 4), stim['size_y'])
-#         return i
-#     
-#     def clicked(self, index):
-#         print self.itemFromIndex(index)
-#     
-#     def clear_stimuli(self):
-#         physio_online.stimsorter.StimSpikeSyncer.clear_stimuli(self)
-#         self.clear()
-
 class QtStimSpikeSyncer(physio_online.stimsorter.StimSpikeSyncer):
     def set_table(self, table):
         self.table = table
@@ -188,11 +161,24 @@ if False:
 # stimuliTable.setModel(core.stimSpikeSyncer)
 # stimuliTable.clicked[QModelIndex].connect(core.stimSpikeSyncer.clicked)
 
-# clearSpikesButton = win.findChild(QPushButton, 'clearSpikesButton')
-# clearSpikesButton.clicked.connect(core.clear_spikes)
-# 
-# clearStimuliButton = win.findChild(QPushButton, 'clearStimuliButton')
-# clearStimuliButton.clicked.connect(core.clear_stimuli)
+clearSpikesButton = win.findChild(QPushButton, 'clearSpikesButton')
+clearSpikesButton.clicked.connect(core.clear_spikes)
+
+clearStimuliButton = win.findChild(QPushButton, 'clearStimuliButton')
+clearStimuliButton.clicked.connect(core.clear_stimuli)
+
+
+global nameText, posText, sizeText
+def query():
+    global nameText, posText, sizeText
+    print "query:",nameText.toPlainText(),posText.toPlainText(),sizeText.toPlainText()
+
+queryButton = win.findChild(QPushButton, 'queryButton')
+queryButton.clicked.connect(query)
+
+nameText = win.findChild(QPlainTextEdit, 'nameText')
+posText = win.findChild(QPlainTextEdit, 'posText')
+sizeText = win.findChild(QPlainTextEdit, 'sizeText')
 
 # make and start update timer
 timer = QTimer(canvas)

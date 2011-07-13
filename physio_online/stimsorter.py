@@ -2,15 +2,66 @@
 
 import logging
 
-class Stim:
+class Stim(object):
+    # attributePrecedence = ['rotation','size_y','size_x','pos_y','pos_x','name']
+    attributePrecedence = ['intName','pos_x','pos_y','size_x','size_y','rotation']
     def __init__(self, stimdict):
         self.stimdict = stimdict
         self.name = stimdict['name']
+        try: # hack to allow sorting with non-int name sorting
+            self.intName = int(self.name)
+        except:
+            self.intName = -ord(self.name[0])
         self.pos_x = stimdict['pos_x']
         self.pos_y = stimdict['pos_y']
         self.rotation = stimdict['rotation']
         self.size_x = stimdict['size_x']
         self.size_y = stimdict['size_y']
+    
+    def __lt__(self, other):
+        for attr in self.attributePrecedence:
+            print self.__getattribute__(attr), other.__getattribute__(attr), self.__getattribute__(attr) < other.__getattribute__(attr)
+            if self.__getattribute__(attr) < other.__getattribute__(attr):
+                return True
+            elif self.__getattribute__(attr) > other.__getattribute__(attr):
+                return False
+        return False
+
+    def __gt__(self, other):
+        for attr in self.attributePrecedence:
+            print self.__getattribute__(attr), other.__getattribute__(attr), self.__getattribute__(attr) > other.__getattribute__(attr)
+            if self.__getattribute__(attr) > other.__getattribute__(attr):
+                return True
+            elif self.__getattribute__(attr) < other.__getattribute__(attr):
+                return False
+        return False
+
+    def __le__(self, other):
+        for attr in self.attributePrecedence:
+            print self.__getattribute__(attr), other.__getattribute__(attr), self.__getattribute__(attr) < other.__getattribute__(attr)
+            if self.__getattribute__(attr) < other.__getattribute__(attr):
+                return True
+            elif self.__getattribute__(attr) > other.__getattribute__(attr):
+                return False
+        return True
+
+    def __ge__(self, other):
+        for attr in self.attributePrecedence:
+            print self.__getattribute__(attr), other.__getattribute__(attr), self.__getattribute__(attr) > other.__getattribute__(attr)
+            if self.__getattribute__(attr) > other.__getattribute__(attr):
+                return True
+            elif self.__getattribute__(attr) < other.__getattribute__(attr):
+                return False
+        return True
+
+    def __eq__(self, other):
+        for attr in self.attributePrecedence:
+            if self.__getattribute__(attr) != other.__getattribute__(attr):
+                return False
+        return True
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
     
     def comp(self, other):
         if (self.name != other.name) or \
