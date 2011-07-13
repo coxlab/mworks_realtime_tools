@@ -63,16 +63,16 @@ class Stim(object):
     def __ne__(self, other):
         return not self.__eq__(other)
     
-    def comp(self, other):
-        if (self.name != other.name) or \
-            (self.pos_x != other.pos_x) or \
-            (self.pos_y != other.pos_y) or \
-            (self.size_x != other.size_x) or \
-            (self.size_y != other.size_y) or \
-            (self.rotation != other.rotation):
-            return False
-        else:
-            return True
+    # def comp(self, other):
+    #     if (self.name != other.name) or \
+    #         (self.pos_x != other.pos_x) or \
+    #         (self.pos_y != other.pos_y) or \
+    #         (self.size_x != other.size_x) or \
+    #         (self.size_y != other.size_y) or \
+    #         (self.rotation != other.rotation):
+    #         return False
+    #     else:
+    #         return True
     
     def __repr__(self):
         return 'Stim:%s x:%.2f y:%.2f r:%.2f size:%.2f %.2f' % \
@@ -85,7 +85,7 @@ class StimSorter(object):
     
     def find_stim(self, stim):
         for i in xrange(len(self.stimList)):
-            if self.stimList[i].comp(stim):
+            if self.stimList[i] == (stim):
                 return i
         return -1
     
