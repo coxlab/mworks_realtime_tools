@@ -136,6 +136,8 @@ class QtStimSpikeSyncerModel(physio_online.stimsorter.StimSpikeSyncer, QStandard
     def clear_stimuli(self):
         physio_online.stimsorter.StimSpikeSyncer.clear_stimuli(self)
         self.clear()
+        self.setColumnCount(6)
+        self.setHorizontalHeaderLabels(['Name','Pos X','Pos Y','Size X','Size Y','Rotation'])
     
     # def stim_at_row(self, r):
     #     sd = {}
