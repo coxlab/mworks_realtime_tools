@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/myPython/bin/python
 """
     A Qt based online physiology monitoring program
     
@@ -16,6 +16,10 @@
     == Parts ==
     Core should be UI independent
 """
+
+############################!/usr/bin/env python
+
+execfile('/myPython/bin/activate_this.py', dict(__file__='/myPython/bin/activate_this.py'))
 
 import logging, sys
 logging.basicConfig(level=logging.ERROR)
@@ -176,7 +180,7 @@ class QtPhysio(physio_online.core.Core):
         self.axes.figure.canvas.draw()
     
     def set_channel(self, channel):
-        self.channel = channel
+        self.channel = channel-1 # convert from 1 to 0 based indexing
         self.display_selection()
     
     def display_selection(self):
@@ -231,7 +235,7 @@ channelSpin = win.findChild(QSpinBox, 'channelSpin')
 channelSpin.valueChanged[int].connect(core.set_channel)
 
 # fill with fake stimuli and spikes
-if True:
+if False:
     sd = {'name':'0','pos_x':0,'pos_y':0,'size_x':1,'size_y':1,'rotation':0}
     core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
     sd['name'] = '1'

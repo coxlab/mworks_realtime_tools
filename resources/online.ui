@@ -48,8 +48,11 @@
      </rect>
     </property>
     <property name="maximum">
-     <number>31</number>
-    </property>
+     <number>32</number>
+ </property>
+   <property name="minimum">
+       <number>1</number>
+   </property>
    </widget>
    <widget class="QPushButton" name="clearSpikesButton">
     <property name="geometry">
