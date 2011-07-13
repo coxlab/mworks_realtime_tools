@@ -34,87 +34,126 @@ from PySide.QtUiTools import *
 
 import physio_online
 
-class QtStimSpikeSyncer(physio_online.stimsorter.StimSpikeSyncer):
-    def set_table(self, table):
-        self.table = table
-        # self.table.setEditTriggers(QAbstractItemView.DoubleClicked)
-        self.table.setColumnCount(6)
-        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setHorizontalHeaderLabels(['Name','Pos X','Pos Y','Size X','Size Y','Rotation'])
+class QtStimSorter(QSortFilterProxyModel):
+    def __init__(self, *args, **kwargs):
+        QSortFilterProxyModel.__init__(self, *args, **kwargs)
+        self.setDynamicSortFilter(True)
+        self.columnFilters = []
+        for i in xrange(6):
+            self.columnFilters.append(QRegExp('.', Qt.CaseInsensitive, QRegExp.PatternSyntax(QRegExp.RegExp)))
+        self.core = None
+    
+    def filterAcceptsRow(self, sourceRow, sourceParent):
+        ret = True
+        for i in xrange(6):
+            colI = self.sourceModel().index(sourceRow, i, sourceParent)
+            regex = self.columnFilters[i]
+            if regex.indexIn(str(self.sourceModel().data(colI))) == -1:
+                ret = False
+        return ret
+    
+    def query(self):
+        self.set_filter(self.nameEdit.text(), 0)
+        self.set_filter(self.posXEdit.text(), 1)
+        self.set_filter(self.posYEdit.text(), 2)
+        self.set_filter(self.sizeEdit.text(), 3)
+        self.invalidateFilter()
+        if not (self.core is None):
+            core.display_selection()
+    
+    def set_filter(self, filterString, colI):
+        self.columnFilters[colI] = QRegExp(filterString, Qt.CaseInsensitive, QRegExp.PatternSyntax(QRegExp.RegExp))
+    
+    def get_stimuli(self):
+        stimuli = []
+        sd = {}
+        for r in xrange(self.rowCount()):
+            sd['name'] = str(self.data(self.index(r,0)))
+            for (c,a) in enumerate(['pos_x','pos_y','size_x','size_y','rotation']):
+                sd[a] = self.data(self.index(r,c+1))
+            stimuli.append(physio_online.stimsorter.Stim(sd))
+        return stimuli
+
+class QtStimSpikeSyncerModel(physio_online.stimsorter.StimSpikeSyncer, QStandardItemModel):
+    def __init__(self, *args, **kwargs):
+        QStandardItemModel.__init__(self, *args, **kwargs)
+        physio_online.stimsorter.StimSpikeSyncer.__init__(self)
+        self.setColumnCount(6)
+        self.setHorizontalHeaderLabels(['Name','Pos X','Pos Y','Size X','Size Y','Rotation'])
     
     def add_stim(self, stim):
         i = physio_online.stimsorter.StimSpikeSyncer.add_stim(self, stim)
         rowI = None
-        for r in xrange(self.table.rowCount()):
+        for r in xrange(self.rowCount()):
             try:
-                intName = int(self.table.item(r, 0).text())
+                intName = int(self.item(r, 0).text())
             except:
-                intName = -ord(str(self.table.item(r,0).text())[0])
+                intName = -ord(str(self.item(r,0).text())[0])
             if intName > stim.intName:
                 rowI = r
                 break
             elif intName < stim.intName:
                 continue
-            if float(self.table.item(r,1).text()) > stim.pos_x:
+            if float(self.item(r,1).text()) > stim.pos_x:
                 rowI = r
                 break
-            elif float(self.table.item(r,1).text()) < stim.pos_x:
+            elif float(self.item(r,1).text()) < stim.pos_x:
                 continue
-            if float(self.table.item(r,2).text()) > stim.pos_y:
+            if float(self.item(r,2).text()) > stim.pos_y:
                 rowI = r
                 break
-            elif float(self.table.item(r,2).text()) < stim.pos_y:
+            elif float(self.item(r,2).text()) < stim.pos_y:
                 continue
-            if float(self.table.item(r,3).text()) > stim.size_x:
+            if float(self.item(r,3).text()) > stim.size_x:
                 rowI = r
                 break
-            elif float(self.table.item(r,3).text()) < stim.size_x:
+            elif float(self.item(r,3).text()) < stim.size_x:
                 continue
-            if float(self.table.item(r,4).text()) > stim.size_y:
+            if float(self.item(r,4).text()) > stim.size_y:
                 rowI = r
                 break
-            elif float(self.table.item(r,4).text()) < stim.size_y:
+            elif float(self.item(r,4).text()) < stim.size_y:
                 continue
-            if float(self.table.item(r,5).text()) > stim.rotation:
+            if float(self.item(r,5).text()) > stim.rotation:
                 rowI = r
                 break
-            elif float(self.table.item(r,5).text()) < stim.rotation:
+            elif float(self.item(r,5).text()) < stim.rotation:
                 continue
         if rowI is None:
-            rowI = self.table.rowCount()
-        self.table.insertRow(rowI)
-        self.table.setItem(rowI, 0, QTableWidgetItem(stim.name))
-        self.table.setItem(rowI, 1, QTableWidgetItem(str(stim.pos_x)))
-        self.table.setItem(rowI, 2, QTableWidgetItem(str(stim.pos_y)))
-        self.table.setItem(rowI, 3, QTableWidgetItem(str(stim.size_x)))
-        self.table.setItem(rowI, 4, QTableWidgetItem(str(stim.size_y)))
-        self.table.setItem(rowI, 5, QTableWidgetItem(str(stim.rotation)))
+            rowI = self.rowCount()
+        self.insertRow(rowI)
+        self.setData(self.index(rowI, 0), stim.name)
+        self.setData(self.index(rowI, 1), stim.pos_x)
+        self.setData(self.index(rowI, 2), stim.pos_y)
+        self.setData(self.index(rowI, 3), stim.size_x)
+        self.setData(self.index(rowI, 4), stim.size_y)
+        self.setData(self.index(rowI, 5), stim.rotation)
     
     def clear_stimuli(self):
         physio_online.stimsorter.StimSpikeSyncer.clear_stimuli(self)
-        self.table.clear()
+        self.clear()
     
-    def stim_at_row(self, r):
-        sd = {}
-        sd['name'] = str(self.table.item(r,0).text())
-        sd['pos_x'] = float(self.table.item(r,1).text())
-        sd['pos_y'] = float(self.table.item(r,2).text())
-        sd['size_x'] = float(self.table.item(r,3).text())
-        sd['size_y'] = float(self.table.item(r,4).text())
-        sd['rotation'] = float(self.table.item(r,5).text())
-        return physio_online.stimsorter.Stim(sd)
-    
-    def get_selected(self):
-        selectedRows = self.table.selectionModel().selectedRows()
-        selectedStimI = []
-        for sel in selectedRows:
-            stim = self.stim_at_row(sel.row())
-            i = self.find_stim(stim)
-            if i == -1:
-                logging.warning("Selected row[%i][stim=%s] did not match" % (sel.row(), stim))
-            else:
-                selectedStimI.append(i)
-        return selectedStimI
+    # def stim_at_row(self, r):
+    #     sd = {}
+    #     sd['name'] = str(self.item(r,0).text())
+    #     sd['pos_x'] = float(self.item(r,1).text())
+    #     sd['pos_y'] = float(self.item(r,2).text())
+    #     sd['size_x'] = float(self.item(r,3).text())
+    #     sd['size_y'] = float(self.item(r,4).text())
+    #     sd['rotation'] = float(self.item(r,5).text())
+    #     return physio_online.stimsorter.Stim(sd)
+    # 
+    # def get_selected(self):
+    #     selectedRows = self.table.selectionModel().selectedRows()
+    #     selectedStimI = []
+    #     for sel in selectedRows:
+    #         stim = self.stim_at_row(sel.row())
+    #         i = self.find_stim(stim)
+    #         if i == -1:
+    #             logging.warning("Selected row[%i][stim=%s] did not match" % (sel.row(), stim))
+    #         else:
+    #             selectedStimI.append(i)
+    #     return selectedStimI
 
 class QtPhysio(physio_online.core.Core):
     def __init__(self, config, figure, axes, parent=None):
@@ -122,7 +161,7 @@ class QtPhysio(physio_online.core.Core):
         self.figure = figure
         self.axes = axes
         # little bit of a hack
-        self.stimSpikeSyncer = QtStimSpikeSyncer()
+        self.stimSpikeSyncer = QtStimSpikeSyncerModel()
         self.channel = 0
     
     def update(self):
@@ -141,11 +180,17 @@ class QtPhysio(physio_online.core.Core):
         self.display_selection()
     
     def display_selection(self):
-        selectedStimI = self.stimSpikeSyncer.get_selected()
+        # selectedStimI = self.stimSpikeSyncer.get_selected()
+        stimuli = self.sortModel.get_stimuli()
         spikes = []
-        for stimI in selectedStimI:
+        # for stimI in selectedStimI:
+        for stim in stimuli:
             try:
-                spikes += core.stimSpikeSyncer.get_stim_spikes(self.channel,stimI) # TODO channel and stimuli selection
+                stimI = core.stimSpikeSyncer.find_stim(stim)
+                if stimI != -1:
+                    spikes += core.stimSpikeSyncer.get_stim_spikes(self.channel,stimI)
+                else:
+                    logging.warning("Attempted to get spikes for unknown stimulus: %s" % str(stim))
             except:
                 logging.debug('No spikes')
                 return
@@ -154,7 +199,7 @@ class QtPhysio(physio_online.core.Core):
 # Create a Qt application 
 app = QApplication(sys.argv)
 loader = QUiLoader()
-f = QFile('resources/psth.ui')
+f = QFile('resources/online.ui')
 f.open(QFile.ReadOnly)
 win = loader.load(f)
 
@@ -173,15 +218,20 @@ config = physio_online.cfg.Config()
 core = QtPhysio(config, fig, ax, win)
 
 # setup stimulus table
-stimuliTable = win.findChild(QTableWidget, 'stimuliTable')
-core.stimSpikeSyncer.set_table(stimuliTable)
-stimuliTable.selectionModel().selectionChanged.connect(core.display_selection)
+sortModel = QtStimSorter()
+sortModel.setSourceModel(core.stimSpikeSyncer)
+stimuliTableView = win.findChild(QTableView, 'stimuliTableView')
+stimuliTableView.setModel(sortModel)
+core.sortModel = sortModel
+sortModel.core = core
+# core.stimSpikeSyncer.set_table(stimuliTable)
+# stimuliTable.selectionModel().selectionChanged.connect(core.display_selection)
 
 channelSpin = win.findChild(QSpinBox, 'channelSpin')
 channelSpin.valueChanged[int].connect(core.set_channel)
 
 # fill with fake stimuli and spikes
-if False:
+if True:
     sd = {'name':'0','pos_x':0,'pos_y':0,'size_x':1,'size_y':1,'rotation':0}
     core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
     sd['name'] = '1'
@@ -193,6 +243,8 @@ if False:
     core.stimSpikeSyncer.channels[0][0] = [0.01,-0.01]
     core.stimSpikeSyncer.channels[0][1] = [0.02,0.025]
     core.stimSpikeSyncer.channels[0][2] = [0.03,0.035]
+    sd['name'] = 'BlueSquare'
+    core.stimSpikeSyncer.add_stim(physio_online.stimsorter.Stim(sd))
 
 # self.view.selectionModel().selectionChanged.connect(self.updateActions)
 # stimuliTable.setModel(core.stimSpikeSyncer)
@@ -205,17 +257,23 @@ clearStimuliButton = win.findChild(QPushButton, 'clearStimuliButton')
 clearStimuliButton.clicked.connect(core.clear_stimuli)
 
 
-global nameText, posText, sizeText
-def query():
-    global nameText, posText, sizeText
-    print "query:",nameText.toPlainText(),posText.toPlainText(),sizeText.toPlainText()
+# global nameText, posText, sizeText
+# def query():
+#     global nameText, posText, sizeText
+#     print "query:",nameText.toPlainText(),posText.toPlainText(),sizeText.toPlainText()
+    
 
 queryButton = win.findChild(QPushButton, 'queryButton')
-queryButton.clicked.connect(query)
+queryButton.clicked.connect(sortModel.query)
 
-nameText = win.findChild(QPlainTextEdit, 'nameText')
-posText = win.findChild(QPlainTextEdit, 'posText')
-sizeText = win.findChild(QPlainTextEdit, 'sizeText')
+sortModel.nameEdit = win.findChild(QLineEdit, 'nameEdit')
+sortModel.nameEdit.textChanged.connect(sortModel.query)
+sortModel.posXEdit = win.findChild(QLineEdit, 'posXEdit')
+sortModel.posXEdit.textChanged.connect(sortModel.query)
+sortModel.posYEdit = win.findChild(QLineEdit, 'posYEdit')
+sortModel.posYEdit.textChanged.connect(sortModel.query)
+sortModel.sizeEdit = win.findChild(QLineEdit, 'sizeEdit')
+sortModel.sizeEdit.textChanged.connect(sortModel.query)
 
 # make and start update timer
 timer = QTimer(canvas)
