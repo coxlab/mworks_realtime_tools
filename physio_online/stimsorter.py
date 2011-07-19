@@ -167,7 +167,7 @@ class StimSpikeSyncer(StimTimer):
     
     def process_spike(self, channel, time):
         stim, stimI, dt = self.lookup_stim_for_time(time)
-        if stim == None:
+        if stim is None:
             # this spike does not match any stimuli
             # however, since spike & mw events may come out of order
             # it may match a stim that comes later
