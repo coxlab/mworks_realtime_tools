@@ -14,6 +14,12 @@ socketTemplate: tcp://127.0.0.1:%%i
 socketStart: 8000
 socketEnd: 8032
 sampling_rate: 44100
+
+[mongo]
+hostname: soma2.rowland.org
+database: test_999999
+spike_collection: spikes
+mworks_collection: mworks
 """
 
 class Config(ConfigParser.SafeConfigParser):
