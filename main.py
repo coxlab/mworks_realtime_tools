@@ -10,7 +10,7 @@ if __name__ == '__main__':
     cfg = physio_online.cfg.Config()
     cfg.read_user_config()
 
-    data_source = physio_online.datasource.DataSource(cfg)
+    data_source = physio_online.datasource.MongoDataSource(cfg)
 
     while 1:
         data_source.update()
