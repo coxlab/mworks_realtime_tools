@@ -74,7 +74,7 @@ class MongoDataSource(DataSource): # or DebugDataSource for verbose logging.debu
         return {'code': event.code, 'name': event.name,\
                 'time': event.time, 'data': event.data}
     
-    def spikes_to_mongo(self, event):
+    def spike_to_mongo(self, event):
         return {'ch': event.channel_id, 'aut': event.time_stamp}
 
 #TODO make fake mongodatasource for complete offline testing
