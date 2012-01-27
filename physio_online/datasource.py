@@ -26,12 +26,12 @@ class DataSource(object):
 
         self.sampling_rate = float(config.getint('audio', 'sampling_rate'))
 
-    def process_mw_event(event):
+    def process_mw_event(self, event):
         logging.debug("DataSource recieved" + \
-                "MW: %i : %i : %s" % \
-                (event.code, event.time, str(event.data)))
+                "MW: %s : %i : %i : %s" % \
+                (event.name, event.code, event.time, str(event.data)))
 
-    def process_spike_event(event):
+    def process_spike_event(self, event):
         logging.debug("DataSource recieved" + \
                 "Spike: %i : %i" % \
                 (event.time_stamp, event.channel_id))

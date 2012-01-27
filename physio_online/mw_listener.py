@@ -21,6 +21,7 @@ class MWListener(object):
         logging.debug("MWListener recieved" + \
                 "%i : %i : %s" % \
                 (event.code, event.time, str(event.data)))
+        event.name = self.event_names[event.code]
         [cb(event) for cb in self.callbacks]
 
     def register_callback(self, func):

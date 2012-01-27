@@ -7,13 +7,13 @@ import ConfigParser, io, logging, os
 CFGDEFAULTS = """
 [mworks]
 conduitname: server_event_conduit
-event_names: #stimDisplayUpdate, #pixelClockOffset
+eventnames: #stimDisplayUpdate, #pixelClockOffset
 
 [audio]
 socketTemplate: tcp://127.0.0.1:%%i
 socketStart: 8000
 socketEnd: 8032
-sampRate: 44100
+sampling_rate: 44100
 """
 
 class Config(ConfigParser.SafeConfigParser):
