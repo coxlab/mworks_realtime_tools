@@ -7,13 +7,7 @@ import ConfigParser, io, logging, os
 CFGDEFAULTS = """
 [mworks]
 conduitname: server_event_conduit
-conv: 0.000001
-
-[pixel clock]
-socketTemplate: ipc:///tmp/pixel_clock/%%i
-socketStart: 0
-socketEnd: 4
-maxError: 2
+event_names: #stimDisplayUpdate, #pixelClockOffset
 
 [audio]
 socketTemplate: tcp://127.0.0.1:%%i
@@ -35,26 +29,7 @@ class Config(ConfigParser.SafeConfigParser):
             self.read(filename)
         else:
             logging.warning('No user cfg found: %s' % filename)
-    
-    # def read_session_config(self, session):
-    #     filename = '/'.join((self.get('filesystem','datarepo'),session,'physio.ini'))
-    #     if os.path.exists(filename):
-    #         logging.debug("Found session cfg: %s" % filename)
-    #         self.read(filename)
-    #     else:
-    #         logging.warning('No session cfg found: %s' % filename)
-    # 
-    # def set_session(self, session):
-    #     self.set('session','name',session)
-    #     
-    #     if self.get('session','dir').strip() == '':
-    #         self.set('session','dir','/'.join((self.get('filesystem','datarepo'),session)))
-    #     
-    #     if self.get('session','output').strip() == '':
-    #         self.set('session','output','/'.join((self.get('session','dir'),'processed')))
-    #     
-    #     if self.get('mworks','file').strip() == '':
-    #         self.set('mworks','file','/'.join((self.get('session','dir'),session + self.get('mworks','ext'))))
-    #     
-    #     if self.get('pixel clock','output').strip() == '':
-    #         self.set('pixel clock','output','/'.join((self.get('session','output'),'pixel_clock')))
+
+    def getlist(self, section, option, delimiter=','):
+        list_string = self.get(section, option)
+        return [s.strip() for s in list_string.split(delimiter)]
