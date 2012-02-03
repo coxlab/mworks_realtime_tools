@@ -3,15 +3,10 @@
 import logging
 
 import numpy
-#import scipy.stats
 
 import pymongo
 
-# this should just get events over mworks time
-# make all functions accept a time range
-#   do this by constructing a query dict
-
-# times should mworks (audio does not agree with epoch)
+# times are native (au or mw); convert elsewhere
 
 def range_to_query(trange):
     return {'$gt' : trange[0], '$lt' : trange[1]}
@@ -29,10 +24,6 @@ class Reader(object):
         logging.debug('Spikes count: %i' % \
                 self.db[self.spikes_coll].find().count())
         self._valid_offset = False
-
-    #def query(self, db, coll, q, fn, ft):
-    #    for i in self.conn[db][coll].find(q,fn):
-    #        yield [i[n] for n in fn]
 
     def query(self, coll, q, fn = None):
         if fn == None:
@@ -66,7 +57,7 @@ class Reader(object):
             query['time'] = range_to_query(trange)
         query['data'] = {'$elemMatch': \
                 {'pos_x' : \
-                {'$gt': -1000}}} # get only stimuli
+                {'$gt': -1000}}} # TODO ugly get only stimuli
         if match_dict != {}: query['data'] = {'$elemMatch': match_dict}
         updates = self.query(self.mworks_coll, query, 'data')
 
@@ -96,10 +87,6 @@ class Reader(object):
             query['time'] = range_to_query(trange)
         query['data'] = {'$elemMatch': \
                 {'pos_x' : \
-                {'$gt': -1000}}} # get only stimuli
+                {'$gt': -1000}}} # TODO ugly get only stimuli
         if match_dict != {}: query['data'] = {'$elemMatch': match_dict}
         return self.count(self.mworks_coll, query)
-    
-    #def unique_stimuli(self, match_dict, trange = None):
-    #    stims = self.get_stimuli(match_dict, trange)
-    #    # figure out which are unique
