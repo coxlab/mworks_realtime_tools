@@ -18,14 +18,16 @@ def range_to_query(trange):
 
 class Reader(object):
     def __init__(self, hostname, database,\
-            mworks = 'mworks', spikes = 'spikes'):
+            mworks_coll= 'mworks', spikes_coll = 'spikes'):
 
         self.conn = pymongo.Connection(hostname)
         self.db = self.conn[database]
-        self.mworks = self.db[mworks]
-        self.spikes = self.db[spikes]
-        logging.debug('MWorks count: %i' % self.mworks.find().count())
-        logging.debug('Spikes count: %i' % self.spikes.find().count())
+        self.mworks_coll= mworks_coll
+        self.spikes_coll = spikes_coll
+        logging.debug('MWorks count: %i' % \
+                self.db[self.mworks_coll].find().count())
+        logging.debug('Spikes count: %i' % \
+                self.db[self.spikes_coll].find().count())
         self._valid_offset = False
 
     #def query(self, db, coll, q, fn, ft):
@@ -42,6 +44,9 @@ class Reader(object):
         elif type(fn) == dict:
             for i in self.db[coll].find(q,fn):
                 yield i
+        elif type(fn) == str:
+            for i in self.db[coll].find(q,[fn]):
+                yield i[fn]
         else:
             raise ValueError("Unknown fn: %s" % str(fn))
 
@@ -52,15 +57,18 @@ class Reader(object):
         q = {'ch' : channel}
         if trange is not None:
             q['aut'] = range_to_query(trange)
-        return numpy.array(self.query('spikes', q, {'aut'})) \
+        return numpy.array(self.query(self.spikes_coll, q, 'aut')) \
                 * (1E6 / 44100.)
 
     def get_stimuli(self, match_dict = {}, trange = None):
         query = {'name': '#stimDisplayUpdate'}
         if trange is not None:
             query['time'] = range_to_query(trange)
-        if match_dict != {}: query['$elemMatch'] = match_dict
-        updates = self.query('mworks', query, ['data'])
+        query['data'] = {'$elemMatch': \
+                {'pos_x' : \
+                {'$gt': -1000}}} # get only stimuli
+        if match_dict != {}: query['data'] = {'$elemMatch': match_dict}
+        updates = self.query(self.mworks_coll, query, 'data')
 
         return [s for update in updates \
                 for s in update \
@@ -70,8 +78,8 @@ class Reader(object):
         query = {'name': '#stimDisplayUpdate'}
         if trange is not None:
             query['time'] = range_to_query(trange)
-        if match_dict != {}: query['$elemMatch'] = match_dict
-        updates = self.query('mworks', query, ['time', 'data'])
+        if match_dict != {}: query['data'] = {'$elemMatch': match_dict}
+        updates = self.query(self.mworks_coll, query, ['time', 'data'])
         times = []
         stims = []
         for update in updates:
@@ -86,9 +94,12 @@ class Reader(object):
         query = {'name': '#stimDisplayUpdate'}
         if trange is not None:
             query['time'] = range_to_query(trange)
-        if match_dict != {}: query['$elemMatch'] = match_dict
-        return self.count('mworks', query)
+        query['data'] = {'$elemMatch': \
+                {'pos_x' : \
+                {'$gt': -1000}}} # get only stimuli
+        if match_dict != {}: query['data'] = {'$elemMatch': match_dict}
+        return self.count(self.mworks_coll, query)
     
-    def unique_stimuli(self, match_dict, trange = None):
-        stims = self.get_stimuli(match_dict, trange)
-        # figure out which are unique
+    #def unique_stimuli(self, match_dict, trange = None):
+    #    stims = self.get_stimuli(match_dict, trange)
+    #    # figure out which are unique

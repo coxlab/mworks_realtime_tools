@@ -1,3 +1,7 @@
-import reader
+#!/usr/bin/env python
 
-__all__ = ['reader']
+import pixelclock
+import reader
+import stimuli
+
+__all__ = ['pixelclock', 'reader', 'stimuli']
