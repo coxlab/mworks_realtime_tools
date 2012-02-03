@@ -3,20 +3,22 @@
 import logging
 
 import numpy
-import scipy.stats
+#import scipy.stats
 
 import pymongo
 
-import pixelclock
-
-# times should mworks (audio does not agree with epoch)
+# this should just get events over mworks time
 # make all functions accept a time range
 #   do this by constructing a query dict
+
+# times should mworks (audio does not agree with epoch)
+
+def range_to_query(trange):
+    return {'$gt' : trange[0], '$lt' : trange[1]}
 
 class Reader(object):
     def __init__(self, hostname, database,\
             mworks = 'mworks', spikes = 'spikes'):
-        self.clock = pixelclock.PixelClock()
 
         self.conn = pymongo.Connection(hostname)
         self.db = self.conn[database]
@@ -26,47 +28,67 @@ class Reader(object):
         logging.debug('Spikes count: %i' % self.spikes.find().count())
         self._valid_offset = False
 
-    def calculate_offset(self):
-        evs = numpy.array([(c['time'], c['data']) for c in \
-                self.mworks.find({'name': '#pixelClockOffset'}).\
-                sort('time',pymongo.ASCENDING)])
-        return self.clock.calculate_offset(evs[:,0],evs[:,1])
+    #def query(self, db, coll, q, fn, ft):
+    #    for i in self.conn[db][coll].find(q,fn):
+    #        yield [i[n] for n in fn]
 
-    def get_spikes_over_range(self, channel, trange):
-        """time_range = mworks"""
-        trange = [self.audio_to_mworks_time(trange[i]) for i in xrange(2)]
-        auts = [s['aut'] for s in self.spikes.find(\
-                {'aut' : {'$gt': trange[0], '$lt': trange[1]}, \
-                'ch' : channel}, {'aut'})]
-        auts = numpy.array(auts) * (1E6 / 44100.)
-        return self.clock.audio_to_mworks_time(auts)
+    def query(self, coll, q, fn = None):
+        if fn == None:
+            for i in self.db[coll].find(q):
+                yield i
+        elif type(fn) == list:
+            for i in self.db[coll].find(q,fn):
+                yield [i[n] for n in fn]
+        elif type(fn) == dict:
+            for i in self.db[coll].find(q,fn):
+                yield i
+        else:
+            raise ValueError("Unknown fn: %s" % str(fn))
 
-    def get_spikes(self, channel):
-        auts = [s['aut'] for s in self.spikes.find(\
-                {'ch': channel}, {'aut'})]
-        auts = numpy.array(auts) * (1E6 / 44100.)
-        return self.clock.audio_to_mworks_time(auts)
+    def count(self, coll, q):
+        return self.db[coll].find(q).count()
     
-    def get_trials(self, match_dict = {}):
-        # TODO failure filtering
-        return self.get_stimuli(match_dict)
+    def get_spikes(self, channel, trange = None):
+        q = {'ch' : channel}
+        if trange is not None:
+            q['aut'] = range_to_query(trange)
+        return numpy.array(self.query('spikes', q, {'aut'})) \
+                * (1E6 / 44100.)
 
-    def get_stimuli(self, match_dict = {}):
+    def get_stimuli(self, match_dict = {}, trange = None):
         query = {'name': '#stimDisplayUpdate'}
+        if trange is not None:
+            query['time'] = range_to_query(trange)
         if match_dict != {}: query['$elemMatch'] = match_dict
-        updates = [t for t in self.mworks.find(\
-                query,{'time', 'data'})]
-        times = numpy.array([t['time'] for t in updates])
-        # TODO is 'pos_x' a  good marker for a stimulus?
-        stims = [s for t in updates\
-                for s in t['data']\
+        updates = self.query('mworks', query, ['data'])
+
+        return [s for update in updates \
+                for s in update \
                 if ((s is not None) and ('pos_x' in s))]
+
+    def get_trials(self, match_dict = {}, trange = None):
+        query = {'name': '#stimDisplayUpdate'}
+        if trange is not None:
+            query['time'] = range_to_query(trange)
+        if match_dict != {}: query['$elemMatch'] = match_dict
+        updates = self.query('mworks', query, ['time', 'data'])
+        times = []
+        stims = []
+        for update in updates:
+            times.append(update[0]) # 'time'
+            for s in update[1]: # 'data'
+                if (s is not None) and ('pos_x' in s):
+                    # TODO is 'pos_x' a  good marker for a stimulus?
+                    stims.append(s)
         return times, stims
 
-    def count_stimuli(self, match_dict = {}):
+    def count_stimuli(self, match_dict = {}, trange = None):
         query = {'name': '#stimDisplayUpdate'}
+        if trange is not None:
+            query['time'] = range_to_query(trange)
         if match_dict != {}: query['$elemMatch'] = match_dict
-        return self.mworks.find(query).count()
+        return self.count('mworks', query)
     
-    def unique_stimuli(self, match_dict):
-        _, stims = self.get_stimuli(match_dict)
+    def unique_stimuli(self, match_dict, trange = None):
+        stims = self.get_stimuli(match_dict, trange)
+        # figure out which are unique
