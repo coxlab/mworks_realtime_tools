@@ -7,7 +7,7 @@ import data
 reader = data.reader.Reader('soma2.rowland.org', 'test_120201')
 
 stim_times, stims = reader.get_trials({})
-spike_times = reader.get_spikes(1)
+spike_times = pylab.array(reader.get_spikes(1))
 
 print "Found %i trials" % len(stims)
 if len(stims): print "\tExample: %s" % str(stims[0])

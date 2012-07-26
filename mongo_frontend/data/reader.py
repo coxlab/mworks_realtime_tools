@@ -48,7 +48,7 @@ class Reader(object):
         q = {'ch' : channel}
         if trange is not None:
             q['aut'] = range_to_query(trange)
-        return numpy.array(self.query(self.spikes_coll, q, 'aut')) \
+        return numpy.array(list(self.query(self.spikes_coll, q, 'aut'))) \
                 * (1E6 / 44100.)
 
     def get_stimuli(self, match_dict = {}, trange = None):
